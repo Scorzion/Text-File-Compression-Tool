@@ -2,8 +2,6 @@
 
 ## Website hosted here ----> (https://huffman-app.herokuapp.com)
 
-### For video demonstration : [Huffman Coding](https://youtu.be/wWDMmJrxVUk)
-
 ### A file compressing (and decompressing) web application designed using the concept of Huffman Coding.
 
 ![Homepage](static/Homepage.png)
