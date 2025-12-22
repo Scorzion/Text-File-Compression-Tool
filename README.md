@@ -1,6 +1,6 @@
 # File Compression Using Huffman Coding
 
-## Website hosted here ----> (https://huffman-app.herokuapp.com)
+## Website hosted here ----> (https://text-file-compression-tool.vercel.app/)
 
 ### A file compressing (and decompressing) web application designed using the concept of Huffman Coding.
 
