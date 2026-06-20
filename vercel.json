@@ -1,12 +1,4 @@
 {
-  "routes": [
-    {
-      "src": "/static/(.*)",
-      "dest": "/static/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "app.py"
-    }
-  ]
+  "buildCommand": "echo 'Static Build Only'",
+  "outputDirectory": "."
 }
