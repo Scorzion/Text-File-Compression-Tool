@@ -10,7 +10,13 @@ app = Flask(__name__, template_folder='.')
 
 # Base directories
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-INSTANCE_DIR = os.path.join(BASE_DIR, 'instance')
+IS_VERCEL = os.environ.get('VERCEL') == '1'
+
+if IS_VERCEL:
+    INSTANCE_DIR = '/tmp/instance'
+else:
+    INSTANCE_DIR = os.path.join(BASE_DIR, 'instance')
+
 UPLOAD_FOLDER = os.path.join(INSTANCE_DIR, 'uploads')
 DOWNLOAD_FOLDER = os.path.join(INSTANCE_DIR, 'downloads')
 
