@@ -130,6 +130,17 @@ const errorAlert = document.getElementById('error-alert');
 const errorMessage = document.getElementById('error-message');
 const formatsLabel = document.getElementById('supported-formats-label');
 
+// Safe Lucide creator
+function safeCreateIcons() {
+    try {
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    } catch (e) {
+        console.warn('Lucide icons failed to render:', e);
+    }
+}
+
 // Tab switching
 function switchTab(mode) {
     if (currentMode === mode) return;
@@ -212,7 +223,7 @@ function setFile(file) {
         stateFileIcon.setAttribute('data-lucide', 'binary');
         stateFileIcon.style.color = 'var(--primary)';
     }
-    lucide.createIcons();
+    safeCreateIcons();
 
     dropZonePrompt.classList.add('hidden');
     selectedFileState.classList.remove('hidden');
@@ -256,8 +267,15 @@ function processFile() {
     })
     .then(response => {
         if (!response.ok) {
-            return response.json().then(errData => {
-                throw new Error(errData.error || `HTTP error! Status: ${response.status}`);
+            return response.text().then(text => {
+                let errorMsg = `Server error ${response.status}`;
+                try {
+                    const errJson = JSON.parse(text);
+                    if (errJson && errJson.error) {
+                        errorMsg = errJson.error;
+                    }
+                } catch(e) {}
+                throw new Error(errorMsg);
             });
         }
         return response.json();
