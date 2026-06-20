@@ -21,9 +21,9 @@ Testing is compiled directly inside the server executable. Running the server wi
 ## 🧬 Complexity Metrics
 
 * **Time Complexity**:
-  * **Frequency Profiling**: $\mathcal{O}(M)$ where $M$ is the size of the input file.
-  * **Tree Construction**: $\mathcal{O}(N \log N)$ where $N$ is the alphabet size (max 256 for standard byte spectrums). Since $N$ is bounded by 256, the heap sorting operations are fast.
-* **Space Complexity**: $\mathcal{O}(N)$ to store the frequency map, prefix lookup tables, and active tree nodes. The space usage is independent of the file size $M$.
+  * **Frequency Profiling**: O(M) where M is the size of the input file.
+  * **Tree Construction**: O(N log N) where N is the alphabet size (max 256 for standard byte spectrums). Since N is bounded by 256, the heap sorting operations are fast.
+* **Space Complexity**: O(N) to store the frequency map, prefix lookup tables, and active tree nodes. The space usage is independent of the file size M.
 
 ---
 
@@ -40,8 +40,8 @@ The compressed output stream prepends a custom serialization header to the raw b
 ### Fields:
 1. **Extension Length (1 Byte)**: Length of the original file extension string.
 2. **Original Extension (L Bytes)**: Original file extension (e.g., `txt`).
-3. **Alphabet Size $N$ (2 Bytes)**: `uint16_t` count of unique character entries.
-4. **Alphabet Entries ($N \times 5$ Bytes)**: Mapping of character value (1 byte) to its original frequency count (4-byte `uint32_t`).
+3. **Alphabet Size N (2 Bytes)**: `uint16_t` count of unique character entries.
+4. **Alphabet Entries (N * 5 Bytes)**: Mapping of character value (1 byte) to its original frequency count (4-byte `uint32_t`).
 5. **Raw Bitstream**: Huffman-coded bit sequences.
 
 ### Trailing Bit Alignment
