@@ -1,0 +1,43 @@
+# Python virtual environment
+.venv/
+env/
+venv/
+ENV/
+
+# Python caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Compiled C++ binaries and objects
+c
+d
+*.o
+*.out
+*.exe
+
+# Flask instance and upload files
+instance/
+uploads/
+downloads/
+
+# Test runs
+test_run/
+testing.txt
+testing-compressed.bin
+testing-decompressed.txt
+
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+
+# IDEs and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

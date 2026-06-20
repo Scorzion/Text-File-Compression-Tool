@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Huffman Compressor &mdash; Lossless Binary File Compression</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons (CDN) for modern look -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <!-- Interactive Background Canvas -->
+    <canvas id="bg-canvas"></canvas>
+
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="logo">
+                <i data-lucide="shrink" class="logo-icon purple-glow"></i>
+                <span class="logo-text">HUFFMAN<span class="accent">CODER</span></span>
+            </div>
+            <p class="tagline">High-performance lossless data compression utility based on Greedy Huffman Coding</p>
+        </header>
+
+        <!-- Main Dashboard Card -->
+        <main class="dashboard-card">
+            <!-- Navigation Tabs -->
+            <div class="tabs-nav">
+                <button class="tab-btn active" id="tab-compress" onclick="switchTab('compress')">
+                    <i data-lucide="file-archive"></i> Compress File
+                </button>
+                <button class="tab-btn" id="tab-decompress" onclick="switchTab('decompress')">
+                    <i data-lucide="file-digit"></i> Decompress File
+                </button>
+            </div>
+
+            <div class="tab-content">
+                <!-- Drop Zone area -->
+                <div class="drop-zone" id="drop-zone">
+                    <input type="file" id="file-input" class="file-input" />
+                    <div class="drop-zone-content" id="drop-zone-prompt">
+                        <div class="icon-wrap">
+                            <i data-lucide="upload-cloud" class="upload-icon"></i>
+                        </div>
+                        <h3>Drag & drop your file here</h3>
+                        <p>or <span class="browse-btn">browse files</span></p>
+                        <p class="supported-text" id="supported-formats-label">Supports any text-based file (.txt, .c, .cpp, .js, etc.)</p>
+                    </div>
+
+                    <!-- Selected File State -->
+                    <div class="selected-file-state hidden" id="selected-file-state">
+                        <i data-lucide="file-text" class="file-icon" id="state-file-icon"></i>
+                        <div class="file-details">
+                            <span class="file-name" id="selected-file-name">filename.txt</span>
+                            <span class="file-size" id="selected-file-size">0 KB</span>
+                        </div>
+                        <button class="remove-file-btn" onclick="resetUpload(event)" title="Remove file">
+                            <i data-lucide="x"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Process Button -->
+                <div class="action-bar">
+                    <button class="action-btn" id="process-btn" disabled onclick="processFile()">
+                        <span id="btn-text">Compress File</span>
+                        <i data-lucide="arrow-right"></i>
+                    </button>
+                </div>
+
+                <!-- Loading State -->
+                <div class="loading-container hidden" id="loading-container">
+                    <div class="spinner-box">
+                        <div class="spinner-ring"></div>
+                        <i data-lucide="cpu" class="loading-center-icon"></i>
+                    </div>
+                    <h4 id="loading-title">Compressing file...</h4>
+                    <p>Building minheap tree & packing bitstream streams</p>
+                </div>
+
+                <!-- Results Section -->
+                <div class="results-container hidden" id="results-container">
+                    <h3 class="section-title"><i data-lucide="check-circle" class="success-icon"></i> Processing Successful!</h3>
+                    
+                    <div class="comparison-grid">
+                        <!-- Original File Card -->
+                        <div class="metric-card">
+                            <div class="card-header-small">
+                                <i data-lucide="file" class="text-muted"></i>
+                                <span>Input File</span>
+                            </div>
+                            <div class="metric-val text-muted" id="res-orig-name">file.txt</div>
+                            <div class="metric-desc" id="res-orig-size">Original Size: --</div>
+                        </div>
+
+                        <!-- Spacer / Center Stats -->
+                        <div class="metric-card highlight-card">
+                            <div class="card-header-small">
+                                <i data-lucide="zap" class="text-accent"></i>
+                                <span>Metrics</span>
+                            </div>
+                            <div class="metric-val text-accent" id="res-savings">--</div>
+                            <div class="metric-desc" id="res-ratio">Ratio: --</div>
+                        </div>
+
+                        <!-- Compressed/Output Card -->
+                        <div class="metric-card">
+                            <div class="card-header-small">
+                                <i data-lucide="file-check" class="text-success"></i>
+                                <span>Output File</span>
+                            </div>
+                            <div class="metric-val text-success" id="res-out-name">file-compressed.bin</div>
+                            <div class="metric-desc" id="res-out-size">Compressed Size: --</div>
+                        </div>
+                    </div>
+
+                    <!-- Bottom Bar with Download and Reset -->
+                    <div class="results-actions">
+                        <a href="#" id="download-link" class="download-btn">
+                            <i data-lucide="download"></i> Download File
+                        </a>
+                        <button class="reset-btn" onclick="startOver()">
+                            <i data-lucide="rotate-ccw"></i> Compress Another
+                        </button>
+                    </div>
+                    <div class="performance-tag">
+                        Executed in <span id="res-time" class="mono">0</span> ms
+                    </div>
+                </div>
+
+                <!-- Error Alert -->
+                <div class="error-alert hidden" id="error-alert">
+                    <i data-lucide="alert-triangle"></i>
+                    <div class="error-content">
+                        <strong id="error-title">Error!</strong>
+                        <p id="error-message">Failed to process the file.</p>
+                    </div>
+                    <button class="close-error-btn" onclick="hideError()">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+            </div>
+        </main>
+        
+        <!-- Algorithm Information -->
+        <section class="info-section">
+            <h2>Under the Hood</h2>
+            <div class="info-grid">
+                <div class="info-card">
+                    <i data-lucide="bar-chart-2"></i>
+                    <h3>Optimal Coding</h3>
+                    <p>Characters that occur frequently are assigned shorter binary codes, while rare characters get longer codes, minimizing total bit count.</p>
+                </div>
+                <div class="info-card">
+                    <i data-lucide="shield-check"></i>
+                    <h3>100% Lossless</h3>
+                    <p>The bitwise reconstruction restores the exact original files without losing a single bit of information, verified via MD5 validation checks.</p>
+                </div>
+                <div class="info-card">
+                    <i data-lucide="cpu"></i>
+                    <h3>C++ Engine</h3>
+                    <p>Powered by a high-performance C++ backend utilizing optimal priority queues ($O(N \log N)$) and bitwise raw binary operations.</p>
+                </div>
+            </div>
+        </section>
+        
+        <footer class="app-footer">
+            <p>&copy; 2026 Huffman Coding Engine &bull; Designed for Google SWE Intern Role</p>
+        </footer>
+    </div>
+
+    <!-- Custom JS -->
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script>
+        // Initialize Lucide Icons
+        lucide.createIcons();
+    </script>
+</body>
+</html>
