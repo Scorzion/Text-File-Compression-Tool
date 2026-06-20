@@ -1,13 +1,13 @@
 CXX = g++
-CXXFLAGS = -O3 -Wall -Wextra -std=c++17
+CXXFLAGS = -O3 -Wall -Wextra -std=c++17 -Isrc/
 
-all: c d
+all: prepare server
 
-c: huffcompress.cpp
-	$(CXX) $(CXXFLAGS) huffcompress.cpp -o c
+prepare:
+	mkdir -p bin
 
-d: huffdecompress.cpp
-	$(CXX) $(CXXFLAGS) huffdecompress.cpp -o d
+server: src/server.cpp src/huffman.cpp src/huffman.hpp src/third_party/httplib.h
+	$(CXX) $(CXXFLAGS) src/server.cpp src/huffman.cpp -lpthread -o bin/server
 
 clean:
-	rm -f c d
+	rm -rf bin

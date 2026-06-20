@@ -672,3 +672,299 @@ html, body {
     from { opacity: 0; transform: translateY(15px); }
     to { opacity: 1; transform: translateY(0); }
 }
+
+/* Interactive Sandbox & Tree Visualizer */
+.visualizer-container {
+    animation: slideUp 0.4s ease-out;
+}
+
+.sandbox-input-group {
+    margin-bottom: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.sandbox-label {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sandbox-input-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+#sandbox-input {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 14px 20px;
+    color: var(--text-main);
+    font-size: 16px;
+    font-family: var(--font-sans);
+    transition: var(--transition-smooth);
+}
+
+#sandbox-input:focus {
+    border-color: var(--primary);
+    background: rgba(168, 85, 247, 0.05);
+    box-shadow: 0 0 15px var(--primary-glow);
+    outline: none;
+}
+
+.sandbox-quick-presets {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.preset-label {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-right: 4px;
+}
+
+.preset-btn {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    transition: var(--transition-smooth);
+}
+
+.preset-btn:hover {
+    color: var(--text-main);
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.visualizer-layout {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 20px;
+    margin-bottom: 24px;
+}
+
+@media (max-width: 768px) {
+    .visualizer-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+.tree-panel, .stats-panel {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+}
+
+.tree-panel h3, .stats-panel h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.panel-subtitle {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+}
+
+.svg-container {
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 380px;
+}
+
+#tree-svg {
+    display: block;
+    user-select: none;
+}
+
+/* SVG Elements Styling */
+.tree-node circle {
+    fill: #140f26;
+    stroke: var(--primary);
+    stroke-width: 2px;
+    transition: var(--transition-smooth);
+    cursor: pointer;
+}
+
+.tree-node.leaf circle {
+    stroke: var(--accent);
+    fill: #061c2b;
+}
+
+.tree-node:hover circle {
+    stroke-width: 3px;
+    filter: drop-shadow(0 0 8px var(--primary-glow));
+}
+
+.tree-node.leaf:hover circle {
+    filter: drop-shadow(0 0 8px var(--accent-glow));
+}
+
+.tree-node text {
+    fill: var(--text-main);
+    font-size: 11px;
+    font-weight: 500;
+    font-family: var(--font-sans);
+    text-anchor: middle;
+    dominant-baseline: central;
+    pointer-events: none;
+}
+
+.tree-node.leaf text.char-label {
+    fill: var(--accent);
+    font-weight: 700;
+    font-size: 13px;
+}
+
+.tree-node text.freq-label {
+    font-size: 9px;
+    fill: var(--text-muted);
+}
+
+.tree-link {
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.12);
+    stroke-width: 1.5px;
+    transition: var(--transition-smooth);
+}
+
+.tree-link.active-path {
+    stroke: var(--primary);
+    stroke-width: 2px;
+    filter: drop-shadow(0 0 4px var(--primary-glow));
+}
+
+.branch-label {
+    font-size: 11px;
+    font-family: var(--font-mono);
+    fill: var(--text-muted);
+    font-weight: bold;
+    text-anchor: middle;
+    dominant-baseline: central;
+}
+
+/* Table styling */
+.table-scroll {
+    overflow-y: auto;
+    max-height: 320px;
+}
+
+.codebook-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    text-align: left;
+}
+
+.codebook-table th, .codebook-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.codebook-table th {
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    position: sticky;
+    top: 0;
+    background: #110d26;
+    z-index: 1;
+}
+
+.codebook-table tbody tr {
+    transition: var(--transition-smooth);
+}
+
+.codebook-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.codebook-table td.char-cell {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    color: var(--accent);
+}
+
+.codebook-table td.code-cell {
+    font-family: var(--font-mono);
+    font-weight: bold;
+    color: var(--success);
+}
+
+/* Sandbox Results styling */
+.sandbox-results {
+    margin-top: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.bitstream-container {
+    background: rgba(0, 0, 0, 0.15);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 16px 20px;
+}
+
+.bitstream-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 12px;
+}
+
+.bitstream-header span {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.bitstream-count {
+    color: var(--accent);
+    font-family: var(--font-mono);
+}
+
+.bitstream-val {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-muted);
+    word-break: break-all;
+    line-height: 1.6;
+    letter-spacing: 1px;
+    max-height: 100px;
+    overflow-y: auto;
+    background: rgba(0, 0, 0, 0.15);
+    padding: 10px;
+    border-radius: 8px;
+}
+

@@ -39,6 +39,9 @@
                 <button class="tab-btn" id="tab-decompress" onclick="switchTab('decompress')">
                     <i data-lucide="file-digit"></i> Decompress File
                 </button>
+                <button class="tab-btn" id="tab-visualizer" onclick="switchTab('visualizer')">
+                    <i data-lucide="git-branch"></i> Interactive Sandbox
+                </button>
             </div>
 
             <div class="tab-content">
@@ -146,6 +149,93 @@
                         <i data-lucide="x"></i>
                     </button>
                 </div>
+
+                <!-- Sandbox/Visualizer Section -->
+                <div class="visualizer-container hidden" id="visualizer-container">
+                    <div class="sandbox-input-group">
+                        <label for="sandbox-input" class="sandbox-label"><i data-lucide="keyboard"></i> Enter text to compress and visualize:</label>
+                        <div class="sandbox-input-wrapper">
+                            <input type="text" id="sandbox-input" placeholder="Type something here (e.g. ABRACADABRA)..." value="ABRACADABRA" maxlength="150" oninput="updateSandbox()" />
+                            <div class="sandbox-quick-presets">
+                                <span class="preset-label">Quick Presets:</span>
+                                <button class="preset-btn" onclick="setSandboxText('ABRACADABRA')">ABRACADABRA</button>
+                                <button class="preset-btn" onclick="setSandboxText('BEEP BOOP')">BEEP BOOP</button>
+                                <button class="preset-btn" onclick="setSandboxText('DATA COMPRESSION')">DATA COMPRESSION</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="visualizer-layout">
+                        <!-- Tree Diagram -->
+                        <div class="tree-panel">
+                            <h3><i data-lucide="git-branch"></i> Huffman Tree Visualization</h3>
+                            <p class="panel-subtitle">Visual representation of the prefix code tree. Leaf nodes show character codes and counts.</p>
+                            <div class="svg-container" id="tree-svg-container">
+                                <svg id="tree-svg" width="100%" height="360"></svg>
+                            </div>
+                        </div>
+
+                        <!-- Statistics & Code Table -->
+                        <div class="stats-panel">
+                            <h3><i data-lucide="table"></i> Character Codebook</h3>
+                            <div class="table-scroll">
+                                <table class="codebook-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Char</th>
+                                            <th>Freq</th>
+                                            <th>Percentage</th>
+                                            <th>Huffman Code</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="codebook-tbody">
+                                        <!-- Dynamically generated -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Metrics and Bitstream -->
+                    <div class="sandbox-results">
+                        <div class="comparison-grid">
+                            <div class="metric-card">
+                                <div class="card-header-small">
+                                    <i data-lucide="hash"></i>
+                                    <span>Original Size</span>
+                                </div>
+                                <div class="metric-val text-muted" id="sb-orig-size">--</div>
+                                <div class="metric-desc">8 bits per character</div>
+                            </div>
+                            <div class="metric-card highlight-card">
+                                <div class="card-header-small">
+                                    <i data-lucide="zap"></i>
+                                    <span>Savings</span>
+                                </div>
+                                <div class="metric-val text-accent" id="sb-savings">--</div>
+                                <div class="metric-desc" id="sb-ratio">--</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="card-header-small">
+                                    <i data-lucide="binary"></i>
+                                    <span>Huffman Size</span>
+                                </div>
+                                <div class="metric-val text-success" id="sb-comp-size">--</div>
+                                <div class="metric-desc">Header overhead excluded</div>
+                            </div>
+                        </div>
+
+                        <div class="bitstream-container">
+                            <div class="bitstream-header">
+                                <span><i data-lucide="align-left"></i> Encoded Bitstream</span>
+                                <span class="bitstream-count" id="sb-bitstream-count">0 bits</span>
+                            </div>
+                            <div class="bitstream-val" id="sb-bitstream">
+                                <!-- Dynamically generated -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </main>
         
@@ -172,7 +262,7 @@
         </section>
         
         <footer class="app-footer">
-            <p>&copy; 2026 Huffman Coding Engine &bull; Designed for Google SWE Intern Role</p>
+            <p>&copy; 2026 Huffman Coding Engine &bull; Lossless Data Compression Tool</p>
         </footer>
     </div>
 
