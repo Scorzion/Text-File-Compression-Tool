@@ -1,14 +1,22 @@
 {
   "builds": [
     {
-      "src": "app.py",
-      "use": "@vercel/python"
+      "src": "index.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "static/css/styles.css",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "static/js/app.js",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "app.py"
+      "dest": "/$1"
     }
   ]
 }
