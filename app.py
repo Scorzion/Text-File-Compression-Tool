@@ -4,7 +4,7 @@ import uuid
 import glob
 import shutil
 import subprocess
-from flask import Flask, render_template, request, send_from_directory, jsonify
+from flask import Flask, render_template, request, send_from_directory, jsonify, redirect, url_for
 
 app = Flask(__name__)
 
@@ -54,6 +54,14 @@ def clean_old_sessions():
 def home():
     clean_old_sessions()
     return render_template("index.html")
+
+@app.route("/compress", methods=["GET", "POST"])
+def compress_redirect():
+    return redirect(url_for("home"))
+
+@app.route("/decompress", methods=["GET", "POST"])
+def decompress_redirect():
+    return redirect(url_for("home"))
 
 @app.route("/api/compress", methods=["POST"])
 def compress_api():
