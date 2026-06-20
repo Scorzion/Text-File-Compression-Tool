@@ -1,55 +1,46 @@
-# C++ Huffman File Compressor
+# Huffman File Compressor
 
-A lossless data compression and decompression web utility built in **C++17**, featuring an interactive dashboard that constructs and visualizes Huffman Trees dynamically.
+I built this text compression and decompression tool from scratch to explore greedy algorithms, bitwise data serialization, and multi-threaded web backends. The project features a high-performance **C++17 engine** that handles files entirely in-memory, paired with an interactive dashboard that constructs and visualizes Huffman Trees recursively in real-time.
 
 ---
 
 ## 🚀 Key Features
 
-* **Modular C++17 Core**: Rebuilt modularly inside `src/`. Spawns a multi-threaded web server using the header-only `cpp-httplib` library.
-* **In-Memory Streaming**: Performs all compression and decompression directly on memory buffers using `std::vector<uint8_t>`, preventing slow file writes to disk.
-* **Integrated Test Runner**: Built-in test runner compiles into the server executable, providing instant engine verification via `./bin/server --test`.
-* **Dynamic Tree Visualizer**: A visual frontend dashboard built using glassmorphic styling, incorporating an interactive canvas background and a sharp SVG Huffman Tree visualizer that highlights code paths on hover.
-* **Algorithm Correctness**: Cleanly manages standard edge cases (empty files, repeating single-character inputs, and complete byte spectra).
+* **100% C++17 Backend**: I wrote the entire backend in C++ using a lightweight, header-only server library (`cpp-httplib`). There are no Python scripts, virtual environments, or heavy frameworks required.
+* **In-Memory Huffman Core**: All compression and decompression run entirely in RAM using `std::vector<uint8_t>`. It writes no temporary files to disk, avoiding slow I/O bottlenecks.
+* **Interactive Tree visualizer**: I created an interactive sandbox panel in the frontend where you can type or select presets (like `ABRACADABRA` or `BEEP BOOP`) and watch the Huffman tree construct dynamically in the browser. It highlights code paths from the root to leaves on hover.
+* **Built-in Verification**: I built unit tests directly into the server executable. Running the server with the `--test` flag automatically verifies the engine against empty files, repeating inputs, and a full 256-value byte spectrum.
+* **Correctness & Safety**: The decompressor reconstructs the identical tree using custom serialized headers and stops precisely at the original character count, safely ignoring bitwise padding at the end of the stream.
 
 ---
 
 ## 📁 Repository Structure
 
-```
-├── bin/                 # Compiled binaries (ignored)
-├── Makefile             # C++ compilation configurations
-├── run.sh               # Run helper (compiles, validates tests, and starts server)
-├── DESIGN.md            # Technical design and architecture specification
-├── src/                 # C++ Source Code
-│   ├── huffman.hpp      # Coder API declarations
-│   ├── huffman.cpp      # Huffman priority queue, tree building, and unit tests
-│   ├── server.cpp       # HTTP server, routing, and multipart parsing
-│   └── third_party/
-│       └── httplib.h    # Single-header HTTP library (cpp-httplib)
-└── static/              # Frontend Dashboard Assets
-    ├── index.html       # Web dashboard panel
-    ├── css/styles.css   # Dark-glassmorphic stylesheet
-    └── js/app.js        # Canvas loops, fallback encoder, and SVG tree renderer
-```
+* **`src/`**: Contains my C++ source files.
+  * **`src/huffman.hpp`**: Coder declarations, struct properties, and API signatures.
+  * **`src/huffman.cpp`**: Min-heap tree building, prefix code lookup table generation, bit packing, and unit tests.
+  * **`src/server.cpp`**: Multi-threaded server entry point, static asset routing, and multipart file parsing.
+  * **`src/third_party/httplib.h`**: Lightweight HTTP/HTTPS server library.
+* **`static/`**: Frontend resources including my CSS styles and JavaScript logic.
+* **`index.html`**: The main page dashboard.
+* **`DESIGN.md`**: My detailed technical writeup explaining complexity metrics and the binary serialization format.
+* **`Makefile`**: Simple compiler instructions that output build binaries to `bin/`.
+* **`run.sh`**: Launch helper script.
 
 ---
 
 ## ⚙️ Quick Start
 
-### Prerequisites
-* A Linux environment with `g++` (supporting C++17)
-
-### Build and Launch Server
-Execute the helper script to build the code, run engine unit tests, and start the local server:
+### 1. Run & Start Server
+Simply execute the helper script. It will compile the C++ server, execute the unit tests, and launch the web server:
 ```bash
 chmod +x run.sh
 ./run.sh
 ```
-Once launched, navigate to **`http://127.0.0.1:5000`** in your browser.
+Once started, navigate to **`http://127.0.0.1:5000`** in your browser.
 
-### Run Automated Tests Directly
-Run the C++ unit test runner directly:
+### 2. Run Tests Directly
+To run the C++ unit tests directly without starting the server, run:
 ```bash
 make
 ./bin/server --test
@@ -57,5 +48,5 @@ make
 
 ---
 
-## 🧬 Technical Specifications
-For details on complexity metrics, binary serialization header spec, and code architecture, refer to **[DESIGN.md](DESIGN.md)**.
+## 🧬 Implementation Specifications
+For a deep dive into my binary serialization header format, time/space complexity analysis, and class designs, check out my **[DESIGN.md](DESIGN.md)** writeup.
