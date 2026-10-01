@@ -5,15 +5,22 @@
 #include <functional>
 
 // Node Constructors & Destructors
-Node::Node(uint8_t c, uint32_t f) : ch(c), freq(f), left(nullptr), right(nullptr) {}
-Node::Node(uint32_t f, Node* l, Node* r) : ch(0), freq(f), left(l), right(r) {}
+Node::Node(uint8_t c, uint32_t f) : ch(c), freq(f), min_ch(c), left(nullptr), right(nullptr) {}
+Node::Node(uint32_t f, Node* l, Node* r) : ch(0), freq(f), left(l), right(r) {
+    uint8_t l_min = l ? l->min_ch : 255;
+    uint8_t r_min = r ? r->min_ch : 255;
+    min_ch = (l_min < r_min) ? l_min : r_min;
+}
 Node::~Node() {
     delete left;
     delete right;
 }
 
 bool Compare::operator()(const Node* l, const Node* r) const {
-    return l->freq > r->freq;
+    if (l->freq != r->freq) {
+        return l->freq > r->freq;
+    }
+    return l->min_ch > r->min_ch;
 }
 
 // In-Memory Bit Stream Writing
@@ -79,13 +86,35 @@ public:
     }
 };
 
+// Varint Helpers
+static void write_varint(std::vector<uint8_t>& out, uint32_t val) {
+    while (val >= 0x80) {
+        out.push_back(static_cast<uint8_t>((val & 0x7F) | 0x80));
+        val >>= 7;
+    }
+    out.push_back(static_cast<uint8_t>(val & 0x7F));
+}
+
+static bool read_varint(const std::vector<uint8_t>& in, size_t& offset, uint32_t& val) {
+    val = 0;
+    int shift = 0;
+    while (offset < in.size()) {
+        uint8_t b = in[offset++];
+        val |= static_cast<uint32_t>(b & 0x7F) << shift;
+        if ((b & 0x80) == 0) return true;
+        shift += 7;
+        if (shift >= 35) return false;
+    }
+    return false;
+}
+
 // In-Memory Compression Implementation
 std::vector<uint8_t> compress_memory(const std::vector<uint8_t>& input_data, const std::string& ext) {
-    std::vector<uint8_t> output;
-    
-    // Handle empty file case
+    uint8_t ext_len = static_cast<uint8_t>(ext.length());
+
     if (input_data.empty()) {
-        uint8_t ext_len = static_cast<uint8_t>(ext.length());
+        std::vector<uint8_t> output;
+        output.push_back(0x00); // Mode 0x00 (Huffman)
         output.push_back(ext_len);
         if (ext_len > 0) {
             for (char c : ext) output.push_back(c);
@@ -96,45 +125,31 @@ std::vector<uint8_t> compress_memory(const std::vector<uint8_t>& input_data, con
         return output;
     }
 
-    // Count frequencies
-    uint32_t freq[256] = {0};
-    for (uint8_t byte : input_data) {
-        freq[byte]++;
-    }
-
-    // Write extension header
-    uint8_t ext_len = static_cast<uint8_t>(ext.length());
-    output.push_back(ext_len);
+    // Attempt Huffman Compression (Mode 0x00) with Varint Header
+    std::vector<uint8_t> huff_output;
+    huff_output.push_back(0x00); // Mode 0x00
+    huff_output.push_back(ext_len);
     if (ext_len > 0) {
-        for (char c : ext) {
-            output.push_back(c);
-        }
+        for (char c : ext) huff_output.push_back(c);
     }
 
-    // Extract unique characters for the codebook
+    uint32_t freq[256] = {0};
+    for (uint8_t byte : input_data) freq[byte]++;
+
     std::vector<std::pair<uint8_t, uint32_t>> unique_chars;
     for (int i = 0; i < 256; ++i) {
-        if (freq[i] > 0) {
-            unique_chars.push_back({static_cast<uint8_t>(i), freq[i]});
-        }
+        if (freq[i] > 0) unique_chars.push_back({static_cast<uint8_t>(i), freq[i]});
     }
 
-    // Write alphabet size (2 bytes)
     uint16_t num_unique = static_cast<uint16_t>(unique_chars.size());
-    output.push_back(num_unique & 0xFF);
-    output.push_back((num_unique >> 8) & 0xFF);
+    huff_output.push_back(num_unique & 0xFF);
+    huff_output.push_back((num_unique >> 8) & 0xFF);
 
-    // Write frequency table (5 bytes per entry)
     for (const auto& item : unique_chars) {
-        output.push_back(item.first);
-        uint32_t f = item.second;
-        output.push_back(f & 0xFF);
-        output.push_back((f >> 8) & 0xFF);
-        output.push_back((f >> 16) & 0xFF);
-        output.push_back((f >> 24) & 0xFF);
+        huff_output.push_back(item.first);
+        write_varint(huff_output, item.second);
     }
 
-    // Build Huffman tree
     std::priority_queue<Node*, std::vector<Node*>, Compare> pq;
     for (const auto& item : unique_chars) {
         pq.push(new Node(item.first, item.second));
@@ -156,7 +171,6 @@ std::vector<uint8_t> compress_memory(const std::vector<uint8_t>& input_data, con
         }
     }
 
-    // Generate prefix codes
     std::unordered_map<uint8_t, std::string> codes;
     std::function<void(const Node*, const std::string&)> generate_codes = [&](const Node* n, const std::string& code) {
         if (!n) return;
@@ -167,75 +181,95 @@ std::vector<uint8_t> compress_memory(const std::vector<uint8_t>& input_data, con
         generate_codes(n->left, code + "0");
         generate_codes(n->right, code + "1");
     };
-    if (root) {
-        generate_codes(root, "");
-    }
+    if (root) generate_codes(root, "");
 
-    // Encode input stream
-    BitWriter writer(output);
+    BitWriter writer(huff_output);
     for (uint8_t byte : input_data) {
         writer.write_string(codes[byte]);
     }
     writer.flush();
-
     delete root;
-    return output;
+
+    // Check if Store Mode (Uncompressed Pass-through) is smaller
+    std::vector<uint8_t> store_output;
+    store_output.push_back(0x01); // Mode 0x01 (Store)
+    store_output.push_back(ext_len);
+    if (ext_len > 0) {
+        for (char c : ext) store_output.push_back(c);
+    }
+    store_output.insert(store_output.end(), input_data.begin(), input_data.end());
+
+    if (huff_output.size() <= store_output.size()) {
+        return huff_output;
+    } else {
+        return store_output;
+    }
 }
 
 // In-Memory Decompression Implementation
 std::vector<uint8_t> decompress_memory(const std::vector<uint8_t>& compressed_data, std::string& ext) {
     std::vector<uint8_t> output;
-    
-    if (compressed_data.size() < 3) {
-        return output;
-    }
+    if (compressed_data.empty()) return output;
 
     size_t offset = 0;
-    
-    // Read extension
-    uint8_t ext_len = compressed_data[offset++];
-    if (offset + ext_len > compressed_data.size()) {
+    uint8_t mode = compressed_data[offset++];
+
+    // Mode 0x01: Store (Uncompressed Pass-through)
+    if (mode == 0x01) {
+        if (offset >= compressed_data.size()) return output;
+        uint8_t ext_len = compressed_data[offset++];
+        if (offset + ext_len > compressed_data.size()) return output;
+
+        ext = "";
+        for (uint8_t i = 0; i < ext_len; ++i) ext += static_cast<char>(compressed_data[offset++]);
+        output.insert(output.end(), compressed_data.begin() + offset, compressed_data.end());
         return output;
-    }
-    
-    ext = "";
-    for (uint8_t i = 0; i < ext_len; ++i) {
-        ext += static_cast<char>(compressed_data[offset++]);
     }
 
-    // Read alphabet size
-    if (offset + 2 > compressed_data.size()) {
-        return output;
+    uint8_t ext_len = 0;
+    if (mode == 0x00) {
+        if (offset >= compressed_data.size()) return output;
+        ext_len = compressed_data[offset++];
+    } else {
+        // Legacy mode where byte 0 was ext_len
+        ext_len = mode;
     }
+
+    if (offset + ext_len > compressed_data.size()) return output;
+
+    ext = "";
+    for (uint8_t i = 0; i < ext_len; ++i) ext += static_cast<char>(compressed_data[offset++]);
+
+    if (offset + 2 > compressed_data.size()) return output;
     uint16_t num_unique = compressed_data[offset] | (compressed_data[offset + 1] << 8);
     offset += 2;
 
-    if (num_unique == 0) {
-        return output;
-    }
+    if (num_unique == 0 || num_unique > 256) return output;
 
-    // Read frequency table
     std::vector<std::pair<uint8_t, uint32_t>> unique_chars;
     uint32_t total_chars = 0;
+
     for (uint16_t i = 0; i < num_unique; ++i) {
-        if (offset + 5 > compressed_data.size()) {
-            return output;
-        }
+        if (offset >= compressed_data.size()) return output;
         uint8_t ch = compressed_data[offset++];
-        uint32_t freq = compressed_data[offset] |
-                        (compressed_data[offset + 1] << 8) |
-                        (compressed_data[offset + 2] << 16) |
-                        (compressed_data[offset + 3] << 24);
-        offset += 4;
+        uint32_t freq = 0;
+        if (mode == 0x00) {
+            if (!read_varint(compressed_data, offset, freq)) return output;
+        } else {
+            // Legacy 4-byte uint32
+            if (offset + 4 > compressed_data.size()) return output;
+            freq = static_cast<uint32_t>(compressed_data[offset]) |
+                   (static_cast<uint32_t>(compressed_data[offset + 1]) << 8) |
+                   (static_cast<uint32_t>(compressed_data[offset + 2]) << 16) |
+                   (static_cast<uint32_t>(compressed_data[offset + 3]) << 24);
+            offset += 4;
+        }
         unique_chars.push_back({ch, freq});
         total_chars += freq;
     }
 
-    if (total_chars == 0) {
-        return output;
-    }
+    if (total_chars == 0) return output;
 
-    // Reconstruct Huffman tree
     std::priority_queue<Node*, std::vector<Node*>, Compare> pq;
     for (const auto& item : unique_chars) {
         pq.push(new Node(item.first, item.second));
@@ -257,7 +291,6 @@ std::vector<uint8_t> decompress_memory(const std::vector<uint8_t>& compressed_da
         }
     }
 
-    // Decode bitstream
     BitReader reader(compressed_data, offset);
     uint32_t decoded_count = 0;
     Node* curr = root;
@@ -298,6 +331,7 @@ void run_tests() {
     std::vector<TestCase> test_cases = {
         {"Empty File", {}, "txt"},
         {"Single Character Repeating", std::vector<uint8_t>(1000, 'a'), "txt"},
+        {"Equal Frequency Pattern", {'a','b','c','d','e','f','g','h'}, "txt"},
         {"Standard English Text", {'h','e','l','l','o',' ','w','o','r','l','d','!'}, "txt"},
         {"Uniform Repeats", std::vector<uint8_t>(30000, 'b'), "txt"}
     };
@@ -319,7 +353,7 @@ void run_tests() {
         
         bool passed = (tc.data == decompressed) && (tc.ext == decomp_ext);
         
-        std::cout << "Test: " << tc.name << " (" << tc.data.size() << " bytes) -> ";
+        std::cout << "Test: " << tc.name << " (" << tc.data.size() << " B -> " << compressed.size() << " B) -> ";
         if (passed) {
             std::cout << "\033[32mPASSED\033[0m\n";
         } else {

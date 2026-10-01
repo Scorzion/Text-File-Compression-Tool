@@ -1,116 +1,20 @@
-// Background Particle System on Canvas
-const canvas = document.getElementById('bg-canvas');
-const ctx = canvas.getContext('2d');
-
-let particles = [];
-let mouse = { x: null, y: null, radius: 100 };
-
-// Adjust canvas size
-function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-}
-resizeCanvas();
-window.addEventListener('resize', resizeCanvas);
-
-// Track mouse position
-window.addEventListener('mousemove', (e) => {
-    mouse.x = e.x;
-    mouse.y = e.y;
-});
-window.addEventListener('mouseout', () => {
-    mouse.x = null;
-    mouse.y = null;
-});
-
-// Particle Class
-class Particle {
-    constructor() {
-        this.x = Math.random() * canvas.width;
-        this.y = Math.random() * canvas.height;
-        this.size = Math.random() * 2 + 1;
-        this.speedX = Math.random() * 0.4 - 0.2;
-        this.speedY = Math.random() * 0.4 - 0.2;
-        this.color = Math.random() > 0.5 ? 'rgba(168, 85, 247, 0.4)' : 'rgba(34, 211, 238, 0.3)';
-    }
-
-    update() {
-        this.x += this.speedX;
-        this.y += this.speedY;
-
-        // Bounce on boundaries
-        if (this.x < 0 || this.x > canvas.width) this.speedX = -this.speedX;
-        if (this.y < 0 || this.y > canvas.height) this.speedY = -this.speedY;
-
-        // Interaction with mouse
-        if (mouse.x != null && mouse.y != null) {
-            let dx = mouse.x - this.x;
-            let dy = mouse.y - this.y;
-            let distance = Math.sqrt(dx * dx + dy * dy);
-            if (distance < mouse.radius) {
-                const force = (mouse.radius - distance) / mouse.radius;
-                this.x -= dx * force * 0.02;
-                this.y -= dy * force * 0.02;
-            }
-        }
-    }
-
-    draw() {
-        ctx.fillStyle = this.color;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        ctx.fill();
-    }
-}
-
-// Populate particles
-function initParticles() {
-    particles = [];
-    const count = Math.min(60, Math.floor((canvas.width * canvas.height) / 25000));
-    for (let i = 0; i < count; i++) {
-        particles.push(new Particle());
-    }
-}
-initParticles();
-window.addEventListener('resize', initParticles);
-
-// Drawing connecting lines
-function connectParticles() {
-    let opacityValue = 1;
-    for (let a = 0; a < particles.length; a++) {
-        for (let b = a; b < particles.length; b++) {
-            let dx = particles[a].x - particles[b].x;
-            let dy = particles[a].y - particles[b].y;
-            let distance = Math.sqrt(dx * dx + dy * dy);
-
-            if (distance < 120) {
-                opacityValue = 1 - (distance / 120);
-                ctx.strokeStyle = `rgba(168, 85, 247, ${opacityValue * 0.15})`;
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.moveTo(particles[a].x, particles[a].y);
-                ctx.lineTo(particles[b].x, particles[b].y);
-                ctx.stroke();
-            }
-        }
-    }
-}
-
-// Particle loop
-function animate() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    for (let i = 0; i < particles.length; i++) {
-        particles[i].update();
-        particles[i].draw();
-    }
-    connectParticles();
-    requestAnimationFrame(animate);
-}
-animate();
-
-// Client-Side Huffman Coding Fallback (For static deployment like GitHub Pages)
+// ----------------------------------------------------
+// Core Huffman JS Engine (Deterministic & Safe)
+// ----------------------------------------------------
 class HuffmanJS {
     static compress(fileBytes, extension) {
+        const encoder = new TextEncoder();
+        const extBytes = encoder.encode(extension || '');
+        const extLen = extBytes.length;
+
+        if (fileBytes.length === 0) {
+            const header = new Uint8Array(1 + 1 + extLen + 2);
+            header[0] = 0x00; // Mode 0x00 (Huffman)
+            header[1] = extLen;
+            header.set(extBytes, 2);
+            return header;
+        }
+
         // 1. Count frequencies
         const freq = {};
         for (let i = 0; i < fileBytes.length; i++) {
@@ -125,27 +29,34 @@ class HuffmanJS {
             pq.push({ byte, freq: count, left: null, right: null });
         }
 
-        if (pq.length === 0) {
-            // Empty file: write basic header
-            const header = new Uint8Array(3); // ext_len=0, num_unique=0 (2 bytes)
-            return header;
-        }
+        const getMinCh = (node) => {
+            if (node.min_ch !== undefined) return node.min_ch;
+            if (!node.left && !node.right) {
+                return node.byte !== undefined ? node.byte : (node.char ? node.char.charCodeAt(0) : 255);
+            }
+            const lMin = node.left ? getMinCh(node.left) : 255;
+            const rMin = node.right ? getMinCh(node.right) : 255;
+            node.min_ch = Math.min(lMin, rMin);
+            return node.min_ch;
+        };
 
-        // Helper to pop node with minimum frequency
         const popMin = () => {
-            pq.sort((a, b) => a.freq - b.freq);
+            pq.sort((a, b) => {
+                if (a.freq !== b.freq) return a.freq - b.freq;
+                return getMinCh(a) - getMinCh(b);
+            });
             return pq.shift();
         };
 
         let root = null;
         if (pq.length === 1) {
             const single = popMin();
-            root = { byte: 0, freq: single.freq, left: single, right: null };
+            root = { byte: 0, freq: single.freq, min_ch: getMinCh(single), left: single, right: null };
         } else {
             while (pq.length > 1) {
                 const left = popMin();
                 const right = popMin();
-                const parent = { byte: 0, freq: left.freq + right.freq, left, right };
+                const parent = { byte: 0, freq: left.freq + right.freq, min_ch: Math.min(getMinCh(left), getMinCh(right)), left, right };
                 pq.push(parent);
             }
             root = pq[0];
@@ -164,35 +75,34 @@ class HuffmanJS {
         };
         generateCodes(root, "");
 
-        // 4. Serialize Header
-        const encoder = new TextEncoder();
-        const extBytes = encoder.encode(extension);
-        const extLen = extBytes.length;
+        // 4. Varint Header Serialization
         const numUnique = Object.keys(freq).length;
+        const varintBuf = [];
+        for (const byteStr of Object.keys(freq)) {
+            const byte = parseInt(byteStr);
+            varintBuf.push(byte);
+            let count = freq[byte];
+            while (count >= 0x80) {
+                varintBuf.push((count & 0x7F) | 0x80);
+                count >>>= 7;
+            }
+            varintBuf.push(count & 0x7F);
+        }
 
-        // Header length: 1 (ext_len) + extLen + 2 (numUnique) + numUnique * 5
-        const headerSize = 1 + extLen + 2 + numUnique * 5;
+        const headerSize = 1 + 1 + extLen + 2 + varintBuf.length;
         const header = new Uint8Array(headerSize);
 
         let offset = 0;
+        header[offset++] = 0x00; // Mode 0x00 (Huffman)
         header[offset++] = extLen;
         header.set(extBytes, offset);
         offset += extLen;
 
-        // Alphabet size (16-bit uint)
         header[offset++] = numUnique & 0xFF;
         header[offset++] = (numUnique >> 8) & 0xFF;
+        header.set(varintBuf, offset);
 
-        for (const [byteStr, count] of Object.entries(freq)) {
-            const byte = parseInt(byteStr);
-            header[offset++] = byte;
-            header[offset++] = count & 0xFF;
-            header[offset++] = (count >> 8) & 0xFF;
-            header[offset++] = (count >> 16) & 0xFF;
-            header[offset++] = (count >> 24) & 0xFF;
-        }
-
-        // 5. Pack bit stream into bytes
+        // 5. Pack bit stream
         const bitStream = [];
         for (let i = 0; i < fileBytes.length; i++) {
             const byte = fileBytes[i];
@@ -225,11 +135,23 @@ class HuffmanJS {
             compressedData[byteIndex++] = currentByte;
         }
 
-        // 6. Concatenate Header + Compressed Data
-        const finalOutput = new Uint8Array(headerSize + numBytes);
-        finalOutput.set(header, 0);
-        finalOutput.set(compressedData, headerSize);
-        return finalOutput;
+        const huffOutput = new Uint8Array(headerSize + numBytes);
+        huffOutput.set(header, 0);
+        huffOutput.set(compressedData, headerSize);
+
+        // 6. Store Mode Pass-Through Check
+        const storeHeaderSize = 1 + 1 + extLen;
+        const storeOutput = new Uint8Array(storeHeaderSize + fileBytes.length);
+        storeOutput[0] = 0x01; // Mode 0x01 (Store)
+        storeOutput[1] = extLen;
+        storeOutput.set(extBytes, 2);
+        storeOutput.set(fileBytes, storeHeaderSize);
+
+        if (huffOutput.length <= storeOutput.length) {
+            return huffOutput;
+        } else {
+            return storeOutput;
+        }
     }
 
     static decompress(compressedBytes) {
@@ -238,7 +160,29 @@ class HuffmanJS {
         }
 
         let offset = 0;
-        const extLen = compressedBytes[offset++];
+        const mode = compressedBytes[offset++];
+
+        // Mode 0x01: Store Mode (Uncompressed Pass-through)
+        if (mode === 0x01) {
+            const extLen = compressedBytes[offset++];
+            if (offset + extLen > compressedBytes.length) {
+                throw new Error("Invalid extension length in store header.");
+            }
+            const decoder = new TextDecoder();
+            const ext = decoder.decode(compressedBytes.subarray(offset, offset + extLen));
+            offset += extLen;
+            const fileBytes = compressedBytes.subarray(offset);
+            return { fileBytes, ext };
+        }
+
+        let extLen = 0;
+        if (mode === 0x00) {
+            extLen = compressedBytes[offset++];
+        } else {
+            // Legacy mode where byte 0 was extLen
+            extLen = mode;
+        }
+
         if (offset + extLen > compressedBytes.length) {
             throw new Error("Invalid extension length in header.");
         }
@@ -250,18 +194,41 @@ class HuffmanJS {
         const numUnique = compressedBytes[offset] | (compressedBytes[offset + 1] << 8);
         offset += 2;
 
+        if (numUnique > 256) {
+            throw new Error("Invalid unique symbol count in header.");
+        }
+
         const uniqueChars = [];
         let totalChars = 0;
+
         for (let i = 0; i < numUnique; i++) {
-            if (offset + 5 > compressedBytes.length) {
+            if (offset >= compressedBytes.length) {
                 throw new Error("Frequency table truncated.");
             }
             const ch = compressedBytes[offset++];
-            const freq = compressedBytes[offset] |
-                (compressedBytes[offset + 1] << 8) |
-                (compressedBytes[offset + 2] << 16) |
-                (compressedBytes[offset + 3] << 24);
-            offset += 4;
+
+            let freq = 0;
+            if (mode === 0x00) {
+                let shift = 0;
+                while (offset < compressedBytes.length) {
+                    const b = compressedBytes[offset++];
+                    freq |= (b & 0x7F) << shift;
+                    freq = freq >>> 0;
+                    if ((b & 0x80) === 0) break;
+                    shift += 7;
+                }
+            } else {
+                // Legacy 4-byte uint32
+                if (offset + 4 > compressedBytes.length) {
+                    throw new Error("Frequency table truncated.");
+                }
+                freq = (compressedBytes[offset] |
+                    (compressedBytes[offset + 1] << 8) |
+                    (compressedBytes[offset + 2] << 16) |
+                    (compressedBytes[offset + 3] << 24)) >>> 0;
+                offset += 4;
+            }
+
             uniqueChars.push({ byte: ch, freq });
             totalChars += freq;
         }
@@ -270,36 +237,47 @@ class HuffmanJS {
             return { fileBytes: new Uint8Array(0), ext };
         }
 
-        // Reconstruct Huffman tree
         const pq = [];
         for (const item of uniqueChars) {
             pq.push({ byte: item.byte, freq: item.freq, left: null, right: null });
         }
 
+        const getMinCh = (node) => {
+            if (node.min_ch !== undefined) return node.min_ch;
+            if (!node.left && !node.right) {
+                return node.byte !== undefined ? node.byte : (node.char ? node.char.charCodeAt(0) : 255);
+            }
+            const lMin = node.left ? getMinCh(node.left) : 255;
+            const rMin = node.right ? getMinCh(node.right) : 255;
+            node.min_ch = Math.min(lMin, rMin);
+            return node.min_ch;
+        };
+
         const popMin = () => {
-            pq.sort((a, b) => a.freq - b.freq);
+            pq.sort((a, b) => {
+                if (a.freq !== b.freq) return a.freq - b.freq;
+                return getMinCh(a) - getMinCh(b);
+            });
             return pq.shift();
         };
 
         let root = null;
         if (pq.length === 1) {
             const single = popMin();
-            root = { byte: 0, freq: single.freq, left: single, right: null };
+            root = { byte: 0, freq: single.freq, min_ch: getMinCh(single), left: single, right: null };
         } else {
             while (pq.length > 1) {
                 const left = popMin();
                 const right = popMin();
-                const parent = { byte: 0, freq: left.freq + right.freq, left, right };
+                const parent = { byte: 0, freq: left.freq + right.freq, min_ch: Math.min(getMinCh(left), getMinCh(right)), left, right };
                 pq.push(parent);
             }
             root = pq[0];
         }
 
-        // Decompress raw bitstream
         const decodedBytes = new Uint8Array(totalChars);
         let decodedCount = 0;
         let curr = root;
-
         let byteVal = 0;
 
         for (let i = offset; i < compressedBytes.length && decodedCount < totalChars; i++) {
@@ -327,10 +305,31 @@ class HuffmanJS {
 }
 
 // ----------------------------------------------------
-// UI Logic
+// Shannon Entropy Calculation
 // ----------------------------------------------------
-let currentMode = 'compress'; // or 'decompress'
+function computeShannonEntropy(fileBytes) {
+    if (!fileBytes || fileBytes.length === 0) return 0;
+    const freq = {};
+    for (let i = 0; i < fileBytes.length; i++) {
+        const b = fileBytes[i];
+        freq[b] = (freq[b] || 0) + 1;
+    }
+    let entropy = 0;
+    const total = fileBytes.length;
+    for (const count of Object.values(freq)) {
+        const p = count / total;
+        entropy -= p * Math.log2(p);
+    }
+    return entropy;
+}
+
+// ----------------------------------------------------
+// UI Logic & Event Handlers
+// ----------------------------------------------------
+let currentMode = 'compress'; // 'compress', 'decompress', 'inspector', 'visualizer'
+let inputMode = 'file'; // 'file' or 'text'
 let selectedFile = null;
+let lastCompressedBytes = null;
 
 const dropZone = document.getElementById('drop-zone');
 const fileInput = document.getElementById('file-input');
@@ -346,118 +345,95 @@ const loadingTitle = document.getElementById('loading-title');
 const resultsContainer = document.getElementById('results-container');
 const errorAlert = document.getElementById('error-alert');
 const errorMessage = document.getElementById('error-message');
-const formatsLabel = document.getElementById('supported-formats-label');
+const textInputContainer = document.getElementById('text-input-container');
+const rawTextArea = document.getElementById('raw-text-area');
 
-// Safe Lucide creator
 function safeCreateIcons() {
     try {
         if (typeof lucide !== 'undefined') {
             lucide.createIcons();
         }
-    } catch (e) {
-        console.warn('Lucide icons failed to render:', e);
-    }
+    } catch (e) {}
 }
 
-// Tab switching
 function switchTab(mode) {
-    if (currentMode === mode) return;
     currentMode = mode;
 
-    // Reset UI
-    startOver();
-
-    // Toggle active classes on tab buttons
     document.getElementById('tab-compress').classList.toggle('active', mode === 'compress');
     document.getElementById('tab-decompress').classList.toggle('active', mode === 'decompress');
-    const tabVis = document.getElementById('tab-visualizer');
-    if (tabVis) tabVis.classList.toggle('active', mode === 'visualizer');
+    document.getElementById('tab-inspector').classList.toggle('active', mode === 'inspector');
+    document.getElementById('tab-visualizer').classList.toggle('active', mode === 'visualizer');
 
-    const visContainer = document.getElementById('visualizer-container');
+    const workspaceContent = document.getElementById('workspace-content');
+    const inspectorPanel = document.getElementById('inspector-panel');
+    const visualizerContainer = document.getElementById('visualizer-container');
 
-    if (mode === 'visualizer') {
-        dropZone.classList.add('hidden');
-        processBtn.classList.add('hidden');
-        if (visContainer) visContainer.classList.remove('hidden');
-        // Initialize visualization
+    workspaceContent.classList.add('hidden');
+    inspectorPanel.classList.add('hidden');
+    visualizerContainer.classList.add('hidden');
+
+    if (mode === 'compress' || mode === 'decompress') {
+        workspaceContent.classList.remove('hidden');
+        btnText.innerText = mode === 'compress' ? 'RUN COMPRESSION' : 'RUN DECOMPRESSION';
+        hideError();
+    } else if (mode === 'inspector') {
+        inspectorPanel.classList.remove('hidden');
+        renderHexDump(lastCompressedBytes);
+    } else if (mode === 'visualizer') {
+        visualizerContainer.classList.remove('hidden');
         updateSandbox();
-    } else {
-        dropZone.classList.remove('hidden');
-        processBtn.classList.remove('hidden');
-        if (visContainer) visContainer.classList.add('hidden');
-
-        // Update texts
-        if (mode === 'compress') {
-            btnText.innerText = 'Compress File';
-            formatsLabel.innerText = 'Supports any text-based file (.txt, .c, .cpp, .js, etc.)';
-        } else {
-            btnText.innerText = 'Decompress File';
-            formatsLabel.innerText = 'Supports Huffman compressed binary files (.bin)';
-        }
     }
 }
 
-// File Helpers
+function setInputMode(m) {
+    inputMode = m;
+    document.getElementById('mode-file-btn').classList.toggle('active', m === 'file');
+    document.getElementById('mode-text-btn').classList.toggle('active', m === 'text');
+
+    if (m === 'file') {
+        dropZone.classList.remove('hidden');
+        textInputContainer.classList.add('hidden');
+        processBtn.disabled = !selectedFile;
+    } else {
+        dropZone.classList.add('hidden');
+        textInputContainer.classList.remove('hidden');
+        processBtn.disabled = rawTextArea.value.trim().length === 0;
+    }
+}
+
+function handleTextInput() {
+    if (inputMode === 'text') {
+        processBtn.disabled = rawTextArea.value.trim().length === 0;
+    }
+}
+
 function formatBytes(bytes, decimals = 2) {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) return '0 B';
     const k = 1024;
     const dm = decimals < 0 ? 0 : decimals;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 }
 
-// Event Listeners for Drag and Drop
-['dragenter', 'dragover'].forEach(eventName => {
-    dropZone.addEventListener(eventName, highlight, false);
+// Drag & Drop Handling
+['dragenter', 'dragover'].forEach(name => {
+    dropZone.addEventListener(name, (e) => { e.preventDefault(); dropZone.classList.add('dragover'); }, false);
 });
-
-['dragleave', 'drop'].forEach(eventName => {
-    dropZone.addEventListener(eventName, unhighlight, false);
+['dragleave', 'drop'].forEach(name => {
+    dropZone.addEventListener(name, (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); }, false);
 });
-
-function highlight(e) {
-    e.preventDefault();
-    dropZone.classList.add('dragover');
-}
-
-function unhighlight(e) {
-    e.preventDefault();
-    dropZone.classList.remove('dragover');
-}
-
-dropZone.addEventListener('drop', handleDrop, false);
-fileInput.addEventListener('change', handleFileSelect, false);
-
-function handleDrop(e) {
-    const dt = e.dataTransfer;
-    const files = dt.files;
-    if (files.length > 0) {
-        setFile(files[0]);
-    }
-}
-
-function handleFileSelect(e) {
-    const files = e.target.files;
-    if (files.length > 0) {
-        setFile(files[0]);
-    }
-}
+dropZone.addEventListener('drop', (e) => {
+    if (e.dataTransfer.files.length > 0) setFile(e.dataTransfer.files[0]);
+}, false);
+fileInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) setFile(e.target.files[0]);
+}, false);
 
 function setFile(file) {
     selectedFile = file;
     selectedFileName.innerText = file.name;
     selectedFileSize.innerText = formatBytes(file.size);
-
-    // Choose icon and styles based on mode
-    if (currentMode === 'compress') {
-        stateFileIcon.setAttribute('data-lucide', 'file-text');
-        stateFileIcon.style.color = 'var(--accent)';
-    } else {
-        stateFileIcon.setAttribute('data-lucide', 'binary');
-        stateFileIcon.style.color = 'var(--primary)';
-    }
-    safeCreateIcons();
 
     dropZonePrompt.classList.add('hidden');
     selectedFileState.classList.remove('hidden');
@@ -474,20 +450,19 @@ function resetUpload(event) {
     processBtn.disabled = true;
 }
 
-// Process Action (Compress / Decompress)
+// File / Payload Execution
 function processFile() {
-    if (!selectedFile) return;
-
-    // Show loading spinner
     dropZone.classList.add('hidden');
-    processBtn.classList.add('hidden');
+    textInputContainer.classList.add('hidden');
+    document.getElementById('action-bar').classList.add('hidden');
     loadingContainer.classList.remove('hidden');
     hideError();
 
-    if (currentMode === 'compress') {
-        loadingTitle.innerText = 'Compressing file...';
-    } else {
-        loadingTitle.innerText = 'Decompressing file...';
+    if (inputMode === 'text') {
+        const textStr = rawTextArea.value;
+        const encoder = new TextEncoder();
+        const payloadBytes = encoder.encode(textStr);
+        selectedFile = new File([payloadBytes], "payload.txt", { type: "text/plain" });
     }
 
     const formData = new FormData();
@@ -495,76 +470,87 @@ function processFile() {
 
     const apiEndpoint = currentMode === 'compress' ? '/api/compress' : '/api/decompress';
 
-    // Try server-side C++ API processing first (binary response + custom metadata headers)
+    const startTime = performance.now();
+
     fetch(apiEndpoint, {
         method: 'POST',
         body: formData
     })
-        .then(response => {
-            if (!response.ok) {
-                return response.text().then(text => {
-                    let errorMsg = `Server error ${response.status}`;
-                    try {
-                        const errJson = JSON.parse(text);
-                        if (errJson && errJson.error) {
-                            errorMsg = errJson.error;
-                        }
-                    } catch (e) { }
-                    throw new Error(errorMsg);
-                });
-            }
+    .then(response => {
+        if (!response.ok) {
+            return response.text().then(text => {
+                let errorMsg = `Server error ${response.status}`;
+                try {
+                    const errJson = JSON.parse(text);
+                    if (errJson && errJson.error) errorMsg = errJson.error;
+                } catch (e) {}
+                throw new Error(errorMsg);
+            });
+        }
 
-            // Extract stats from custom headers
-            const origSize = parseInt(response.headers.get('X-Original-Size') || '0');
-            const compSize = parseInt(response.headers.get('X-Compressed-Size') || response.headers.get('X-Decompressed-Size') || '0');
-            const duration = parseInt(response.headers.get('X-Duration-MS') || '0');
-            const origName = response.headers.get('X-Original-Name') || selectedFile.name;
+        const origSize = parseInt(response.headers.get('X-Original-Size') || '0');
+        const compSize = parseInt(response.headers.get('X-Compressed-Size') || response.headers.get('X-Decompressed-Size') || '0');
+        const durationUs = parseInt(response.headers.get('X-Duration-US') || '0');
+        const origName = response.headers.get('X-Original-Name') || selectedFile.name;
 
-            return response.blob().then(blob => {
-                const downloadUrl = URL.createObjectURL(blob);
+        return response.arrayBuffer().then(buffer => {
+            const bytes = new Uint8Array(buffer);
+            lastCompressedBytes = bytes;
+            const blob = new Blob([bytes], { type: 'application/octet-stream' });
+            const downloadUrl = URL.createObjectURL(blob);
 
-                if (currentMode === 'compress') {
-                    const savings = response.headers.get('X-Savings') || '0';
-                    const ratio = response.headers.get('X-Ratio') || '0';
-                    const baseName = origName.substring(0, origName.lastIndexOf('.')) || origName;
-                    const compressedName = `${baseName}-compressed.bin`;
+            const durationMs = durationUs > 0 ? (durationUs / 1000) : (performance.now() - startTime);
+
+            if (currentMode === 'compress') {
+                const savings = response.headers.get('X-Savings') || '0';
+                const ratio = response.headers.get('X-Ratio') || '0';
+                const baseName = origName.substring(0, origName.lastIndexOf('.')) || origName;
+
+                // Read input payload for entropy
+                const fileReader = new FileReader();
+                fileReader.onload = function(e) {
+                    const inputBytes = new Uint8Array(e.target.result);
+                    const entropy = computeShannonEntropy(inputBytes);
 
                     showResults({
                         success: true,
                         original_name: origName,
-                        compressed_name: compressedName,
+                        compressed_name: `${baseName}-compressed.bin`,
                         original_size: origSize,
                         compressed_size: compSize,
+                        entropy: entropy,
                         savings: `${parseFloat(savings).toFixed(2)}%`,
                         ratio: `${parseFloat(ratio).toFixed(2)}x`,
-                        time_ms: duration,
+                        time_us: durationUs,
+                        time_ms: durationMs,
                         download_url: downloadUrl
                     });
-                } else {
-                    const ext = response.headers.get('X-Extension') || 'txt';
-                    const baseName = origName.replace("-compressed.bin", "").replace(".bin", "");
-                    const decompressedName = `${baseName}-decompressed.${ext}`;
+                };
+                fileReader.readAsArrayBuffer(selectedFile);
+            } else {
+                const ext = response.headers.get('X-Extension') || 'txt';
+                const baseName = origName.replace("-compressed.bin", "").replace(".bin", "");
 
-                    showResults({
-                        success: true,
-                        original_name: origName,
-                        decompressed_name: decompressedName,
-                        original_size: origSize,
-                        decompressed_size: compSize,
-                        time_ms: duration,
-                        download_url: downloadUrl
-                    });
-                }
-            });
-        })
-        .catch(error => {
-            // Fall back to client-side JS Huffman Engine (perfect for static servers like GitHub Pages)
-            console.warn("C++ API request failed, falling back to client-side execution:", error.message);
-            runClientSideFallback();
+                showResults({
+                    success: true,
+                    original_name: origName,
+                    decompressed_name: `${baseName}-decompressed.${ext}`,
+                    original_size: origSize,
+                    decompressed_size: compSize,
+                    entropy: 0,
+                    time_us: durationUs,
+                    time_ms: durationMs,
+                    download_url: downloadUrl
+                });
+            }
         });
+    })
+    .catch(error => {
+        console.warn("C++ API unavailable, executing client-side Huffman Engine:", error.message);
+        runClientSideFallback();
+    });
 }
 
-// Client-Side Huffman Fallback Executer
 function runClientSideFallback() {
     const reader = new FileReader();
     reader.onload = function (e) {
@@ -575,130 +561,107 @@ function runClientSideFallback() {
             if (currentMode === 'compress') {
                 const extension = selectedFile.name.split('.').pop() || '';
                 const compressedOutput = HuffmanJS.compress(fileBytes, extension);
-                const duration = performance.now() - startTime;
+                const durationMs = performance.now() - startTime;
+                lastCompressedBytes = compressedOutput;
 
-                // Create Blob download URL
+                const entropy = computeShannonEntropy(fileBytes);
                 const blob = new Blob([compressedOutput], { type: 'application/octet-stream' });
                 const downloadUrl = URL.createObjectURL(blob);
                 const baseName = selectedFile.name.substring(0, selectedFile.name.lastIndexOf('.')) || selectedFile.name;
-                const compressedName = `${baseName}-compressed.bin`;
 
                 showResults({
                     success: true,
                     original_name: selectedFile.name,
-                    compressed_name: compressedName,
+                    compressed_name: `${baseName}-compressed.bin`,
                     original_size: fileBytes.length,
                     compressed_size: compressedOutput.length,
+                    entropy: entropy,
                     savings: `${((1 - (compressedOutput.length / fileBytes.length)) * 100).toFixed(2)}%`,
-                    ratio: `${(compressedOutput.length / fileBytes.length).toFixed(2)}x`,
-                    time_ms: Math.round(duration),
+                    ratio: `${(fileBytes.length / compressedOutput.length).toFixed(2)}x`,
+                    time_ms: durationMs,
                     download_url: downloadUrl,
                     fallback: true
                 });
             } else {
                 const { fileBytes: decompressedOutput, ext } = HuffmanJS.decompress(fileBytes);
-                const duration = performance.now() - startTime;
+                const durationMs = performance.now() - startTime;
+                lastCompressedBytes = fileBytes;
 
-                // Create Blob download URL
                 const blob = new Blob([decompressedOutput], { type: 'application/octet-stream' });
                 const downloadUrl = URL.createObjectURL(blob);
                 const baseName = selectedFile.name.replace("-compressed.bin", "").replace(".bin", "");
-                const decompressedName = `${baseName}-decompressed.${ext}`;
 
                 showResults({
                     success: true,
                     original_name: selectedFile.name,
-                    decompressed_name: decompressedName,
+                    decompressed_name: `${baseName}-decompressed.${ext}`,
                     original_size: fileBytes.length,
                     decompressed_size: decompressedOutput.length,
-                    time_ms: Math.round(duration),
+                    entropy: 0,
+                    time_ms: durationMs,
                     download_url: downloadUrl,
                     fallback: true
                 });
             }
         } catch (err) {
-            showError("Processing Error", err.message || "Failed client-side compression fallback.");
+            showError("Engine Exception", err.message || "Failed client-side compression execution.");
         }
-    };
-    reader.onerror = function () {
-        showError("File Error", "Could not read the uploaded file.");
     };
     reader.readAsArrayBuffer(selectedFile);
 }
 
-// Show Results
 function showResults(data) {
     loadingContainer.classList.add('hidden');
     resultsContainer.classList.remove('hidden');
 
-    const origName = document.getElementById('res-orig-name');
-    const origSize = document.getElementById('res-orig-size');
-    const outName = document.getElementById('res-out-name');
-    const outSize = document.getElementById('res-out-size');
-    const savings = document.getElementById('res-savings');
-    const ratio = document.getElementById('res-ratio');
+    document.getElementById('res-orig-size').innerText = formatBytes(data.original_size);
+    document.getElementById('res-orig-bits').innerText = `${data.original_size * 8} bits`;
+
+    document.getElementById('res-out-size').innerText = formatBytes(data.compressed_size);
+    document.getElementById('res-out-bits').innerText = `${data.compressed_size * 8} bits`;
+
+    if (data.entropy !== undefined) {
+        document.getElementById('res-entropy').innerText = `${data.entropy.toFixed(3)} b/B`;
+        const theoreticalBits = Math.ceil(data.entropy * data.original_size);
+        document.getElementById('res-theoretical').innerText = `Limit: ${formatBytes(Math.ceil(theoreticalBits / 8))}`;
+    }
+
+    document.getElementById('res-savings').innerText = data.savings || '100%';
+    document.getElementById('res-ratio').innerText = `Ratio: ${data.ratio || '1.00x'}`;
+
+    // Throughput in MB/s
+    const timeSec = (data.time_ms || 1) / 1000;
+    const sizeMB = data.original_size / (1024 * 1024);
+    const throughput = timeSec > 0 ? (sizeMB / timeSec).toFixed(2) : '0.00';
+    document.getElementById('res-throughput').innerText = `${throughput} MB/s`;
+
     const downloadLink = document.getElementById('download-link');
-
-    origName.innerText = data.original_name;
-    origSize.innerText = `Size: ${formatBytes(data.original_size)}`;
     downloadLink.href = data.download_url;
+    downloadLink.setAttribute('download', currentMode === 'compress' ? data.compressed_name : data.decompressed_name);
 
-    if (data.fallback) {
-        downloadLink.setAttribute('download', currentMode === 'compress' ? data.compressed_name : data.decompressed_name);
-    } else {
-        downloadLink.removeAttribute('download');
-    }
+    document.getElementById('res-time-badge').innerText = `LATENCY: ${parseFloat(data.time_ms).toFixed(2)} ms ${data.fallback ? '(CLIENT FALLBACK)' : '(NATIVE C++)'}`;
 
-    if (currentMode === 'compress') {
-        outName.innerText = data.compressed_name;
-        outSize.innerText = `Compressed: ${formatBytes(data.compressed_size)}`;
-        savings.innerText = data.savings;
-        savings.className = 'metric-val text-accent';
-        ratio.innerText = `Ratio: ${data.ratio}`;
-    } else {
-        outName.innerText = data.decompressed_name;
-        outSize.innerText = `Decompressed: ${formatBytes(data.decompressed_size)}`;
-        savings.innerText = '100%';
-        savings.className = 'metric-val text-success';
-        ratio.innerText = `Accuracy verified`;
-    }
-
-    // Update performance text & fallback badge
-    const perfTag = document.querySelector('.performance-tag');
-    if (data.fallback) {
-        perfTag.innerHTML = `Executed in <span id="res-time" class="mono">${data.time_ms}</span> ms <span style="color:var(--accent); font-size:11px; display:block; margin-top:4px;">(Client-Side JS Fallback Mode)</span>`;
-    } else {
-        perfTag.innerHTML = `Executed in <span id="res-time" class="mono">${data.time_ms}</span> ms`;
+    const badge = document.getElementById('engine-status-badge');
+    if (badge) {
+        badge.innerText = data.fallback ? 'ENGINE: JS CLIENT FALLBACK' : 'ENGINE: C++ NATIVE HTTP';
     }
 }
 
-// Reset everything to start state
 function startOver() {
     resetUpload();
     resultsContainer.classList.add('hidden');
     loadingContainer.classList.add('hidden');
+    document.getElementById('action-bar').classList.remove('hidden');
+    if (inputMode === 'file') dropZone.classList.remove('hidden');
+    else textInputContainer.classList.remove('hidden');
     hideError();
-
-    const visContainer = document.getElementById('visualizer-container');
-    if (currentMode === 'visualizer') {
-        dropZone.classList.add('hidden');
-        processBtn.classList.add('hidden');
-        if (visContainer) visContainer.classList.remove('hidden');
-    } else {
-        dropZone.classList.remove('hidden');
-        processBtn.classList.remove('hidden');
-        if (visContainer) visContainer.classList.add('hidden');
-    }
 }
 
-// Error Handling
 function showError(title, message) {
-    // Hide loader
     loadingContainer.classList.add('hidden');
-
-    // Restore file drop state
-    dropZone.classList.remove('hidden');
-    processBtn.classList.remove('hidden');
+    document.getElementById('action-bar').classList.remove('hidden');
+    if (inputMode === 'file') dropZone.classList.remove('hidden');
+    else textInputContainer.classList.remove('hidden');
 
     document.getElementById('error-title').innerText = title;
     document.getElementById('error-message').innerText = message;
@@ -710,7 +673,73 @@ function hideError() {
 }
 
 // ----------------------------------------------------
-// Interactive Huffman Sandbox & Tree Visualizer Logic
+// Hex / Bitstream Inspector Renderer
+// ----------------------------------------------------
+function renderHexDump(binaryBytes) {
+    const container = document.getElementById('hex-dump-container');
+    const sizeTag = document.getElementById('inspector-size-tag');
+    if (!container) return;
+
+    if (!binaryBytes || binaryBytes.length === 0) {
+        container.innerHTML = `<span style="color:var(--text-dim)">No compressed binary active. Run a compression job first in [1] COMPRESS WORKSPACE.</span>`;
+        if (sizeTag) sizeTag.innerText = '0 Bytes';
+        return;
+    }
+
+    if (sizeTag) sizeTag.innerText = `${binaryBytes.length} Bytes Payload`;
+
+    let offset = 0;
+    const extLen = binaryBytes[0] || 0;
+    const extEnd = 1 + extLen;
+    let numUnique = 0;
+    if (binaryBytes.length >= extEnd + 2) {
+        numUnique = binaryBytes[extEnd] | (binaryBytes[extEnd + 1] << 8);
+    }
+    const tableEnd = extEnd + 2 + numUnique * 5;
+
+    let html = '';
+    const bytesPerRow = 16;
+    for (let i = 0; i < binaryBytes.length; i += bytesPerRow) {
+        const rowOffsetStr = i.toString(16).padStart(4, '0').toUpperCase();
+        let hexCells = '';
+        let asciiStr = '';
+
+        for (let j = 0; j < bytesPerRow; j++) {
+            const idx = i + j;
+            if (idx < binaryBytes.length) {
+                const b = binaryBytes[idx];
+                const hexVal = b.toString(16).padStart(2, '0').toUpperCase();
+
+                let cls = 'payload';
+                if (idx === 0 || (idx >= 1 && idx < extEnd)) cls = 'header-ext';
+                else if (idx >= extEnd && idx < extEnd + 2) cls = 'header-count';
+                else if (idx >= extEnd + 2 && idx < tableEnd) cls = 'header-table';
+
+                hexCells += `<span class="hex-byte ${cls}">${hexVal}</span>`;
+                asciiStr += (b >= 32 && b <= 126) ? String.fromCharCode(b) : '.';
+            } else {
+                hexCells += `<span class="hex-byte" style="opacity:0;">--</span>`;
+            }
+        }
+
+        html += `
+            <div class="hex-row">
+                <span class="hex-offset">0x${rowOffsetStr}</span>
+                <div class="hex-bytes">${hexCells}</div>
+                <span class="hex-ascii">${escapeHtml(asciiStr)}</span>
+            </div>
+        `;
+    }
+
+    container.innerHTML = html;
+}
+
+function escapeHtml(str) {
+    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// ----------------------------------------------------
+// Tree Visualizer Sandbox
 // ----------------------------------------------------
 let rootGlobal = null;
 let codesGlobal = {};
@@ -719,39 +748,50 @@ let leafCount = 0;
 function buildHuffmanTreeForSandbox(text) {
     if (!text || text.length === 0) return { root: null, codes: {}, freq: {} };
 
-    // 1. Count frequencies
     const freq = {};
     for (let i = 0; i < text.length; i++) {
         const char = text[i];
         freq[char] = (freq[char] || 0) + 1;
     }
 
-    // 2. Build Min-Heap priority queue
     const pq = [];
     for (const [char, count] of Object.entries(freq)) {
         pq.push({ char, freq: count, left: null, right: null });
     }
 
+    const getMinCh = (node) => {
+        if (node.min_ch !== undefined) return node.min_ch;
+        if (!node.left && !node.right) {
+            return node.char ? node.char.charCodeAt(0) : 255;
+        }
+        const lMin = node.left ? getMinCh(node.left) : 255;
+        const rMin = node.right ? getMinCh(node.right) : 255;
+        node.min_ch = Math.min(lMin, rMin);
+        return node.min_ch;
+    };
+
     const popMin = () => {
-        pq.sort((a, b) => a.freq - b.freq);
+        pq.sort((a, b) => {
+            if (a.freq !== b.freq) return a.freq - b.freq;
+            return getMinCh(a) - getMinCh(b);
+        });
         return pq.shift();
     };
 
     let root = null;
     if (pq.length === 1) {
         const single = popMin();
-        root = { char: '', freq: single.freq, left: single, right: null };
+        root = { char: '', freq: single.freq, min_ch: getMinCh(single), left: single, right: null };
     } else {
         while (pq.length > 1) {
             const left = popMin();
             const right = popMin();
-            const parent = { char: '', freq: left.freq + right.freq, left, right };
+            const parent = { char: '', freq: left.freq + right.freq, min_ch: Math.min(getMinCh(left), getMinCh(right)), left, right };
             pq.push(parent);
         }
         root = pq[0];
     }
 
-    // 3. Generate codes recursively
     const codes = {};
     const generateCodes = (node, code) => {
         if (!node) return;
@@ -781,9 +821,7 @@ function computeDepthAndLeaves(node, depth) {
 
 function assignXCoordinates(node) {
     if (!node) return;
-    if (!node.left && !node.right) {
-        return;
-    }
+    if (!node.left && !node.right) return;
     assignXCoordinates(node.left);
     assignXCoordinates(node.right);
 
@@ -793,33 +831,19 @@ function assignXCoordinates(node) {
 }
 
 function getNodeCoords(node, maxDepth, leafCount, svgWidth, svgHeight) {
-    const px = 40;
-    const py = 45;
+    const px = 30;
+    const py = 35;
     const availW = svgWidth - 2 * px;
     const availH = svgHeight - 2 * py;
 
-    let x;
-    if (leafCount <= 1) {
-        x = svgWidth / 2;
-    } else {
-        x = px + node.xOrder * (availW / Math.max(1, leafCount - 1));
-    }
-
-    let y;
-    if (maxDepth === 0) {
-        y = svgHeight / 2;
-    } else {
-        y = py + node.depth * (availH / maxDepth);
-    }
-
+    let x = leafCount <= 1 ? svgWidth / 2 : px + node.xOrder * (availW / Math.max(1, leafCount - 1));
+    let y = maxDepth === 0 ? svgHeight / 2 : py + node.depth * (availH / maxDepth);
     return { x, y };
 }
 
 function drawSvgTree(root, codes) {
     const svg = document.getElementById('tree-svg');
     if (!svg) return;
-
-    // Clear SVG
     svg.innerHTML = '';
 
     if (!root) {
@@ -828,24 +852,21 @@ function drawSvgTree(root, codes) {
         text.setAttribute('y', '50%');
         text.setAttribute('text-anchor', 'middle');
         text.setAttribute('fill', 'var(--text-muted)');
-        text.textContent = 'Enter text to build Huffman Tree';
+        text.textContent = 'Enter text payload to build Huffman Tree';
         svg.appendChild(text);
         return;
     }
 
-    // Set SVG size dynamically based on container width
     const container = document.getElementById('tree-svg-container');
     const width = container.clientWidth || 550;
-    const height = 360;
+    const height = 340;
     svg.setAttribute('width', width);
     svg.setAttribute('height', height);
 
-    // 1. Position nodes
     leafCount = 0;
     const maxDepth = computeDepthAndLeaves(root, 0);
     assignXCoordinates(root);
 
-    // Collect elements
     const nodesList = [];
     const linksList = [];
 
@@ -853,15 +874,10 @@ function drawSvgTree(root, codes) {
         if (!node) return;
         const coords = getNodeCoords(node, maxDepth, leafCount, width, height);
         node.coords = coords;
-
         nodesList.push(node);
 
         if (parent) {
-            linksList.push({
-                parent: parent,
-                child: node,
-                bit: parent.left === node ? '0' : '1'
-            });
+            linksList.push({ parent, child: node, bit: parent.left === node ? '0' : '1' });
         }
 
         traverse(node.left, node);
@@ -869,12 +885,10 @@ function drawSvgTree(root, codes) {
     }
     traverse(root, null);
 
-    // 2. Draw Links (Behind nodes)
     linksList.forEach(link => {
         const pCoords = link.parent.coords;
         const cCoords = link.child.coords;
 
-        // Draw Line
         const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
         line.setAttribute('x1', pCoords.x);
         line.setAttribute('y1', pCoords.y);
@@ -883,17 +897,8 @@ function drawSvgTree(root, codes) {
         line.setAttribute('class', 'tree-link');
         svg.appendChild(line);
 
-        // Draw Bit Text (0 or 1) at midpoint of the link
         const midX = (pCoords.x + cCoords.x) / 2;
         const midY = (pCoords.y + cCoords.y) / 2;
-
-        // Small backdrop circle to make text legible
-        const bg = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        bg.setAttribute('cx', midX);
-        bg.setAttribute('cy', midY);
-        bg.setAttribute('r', '8');
-        bg.setAttribute('fill', '#07050d'); // Match canvas background
-        svg.appendChild(bg);
 
         const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         text.setAttribute('x', midX);
@@ -903,7 +908,6 @@ function drawSvgTree(root, codes) {
         svg.appendChild(text);
     });
 
-    // 3. Draw Nodes (In front)
     nodesList.forEach(node => {
         const coords = node.coords;
         const isLeaf = !node.left && !node.right;
@@ -911,107 +915,41 @@ function drawSvgTree(root, codes) {
         const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
         g.setAttribute('class', `tree-node ${isLeaf ? 'leaf' : 'internal'}`);
 
-        // Draw circle
         const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         circle.setAttribute('cx', coords.x);
         circle.setAttribute('cy', coords.y);
-        circle.setAttribute('r', isLeaf ? '20' : '18');
+        circle.setAttribute('r', isLeaf ? '16' : '14');
         g.appendChild(circle);
 
-        // Draw Text inside node
         if (isLeaf) {
             let displayChar = node.char;
             if (displayChar === ' ') displayChar = '␣';
             else if (displayChar === '\n') displayChar = '↵';
-            else if (displayChar === '\t') displayChar = '⇥';
 
             const charText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             charText.setAttribute('x', coords.x);
-            charText.setAttribute('y', coords.y - 4);
+            charText.setAttribute('y', coords.y - 3);
             charText.setAttribute('class', 'char-label');
             charText.textContent = displayChar;
             g.appendChild(charText);
 
             const freqText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             freqText.setAttribute('x', coords.x);
-            freqText.setAttribute('y', coords.y + 10);
-            freqText.setAttribute('class', 'freq-label');
+            freqText.setAttribute('y', coords.y + 8);
+            freqText.setAttribute('style', 'font-size:8px; fill:var(--text-muted);');
             freqText.textContent = node.freq;
             g.appendChild(freqText);
-
-            // Add tooltip
-            const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-            title.textContent = `Character: '${node.char}'\nFrequency: ${node.freq}\nHuffman Code: ${codes[node.char]}`;
-            g.appendChild(title);
         } else {
             const freqText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             freqText.setAttribute('x', coords.x);
             freqText.setAttribute('y', coords.y);
-            freqText.setAttribute('fill', 'var(--text-main)');
-            freqText.setAttribute('font-weight', 'bold');
+            freqText.setAttribute('style', 'font-size:9px; font-weight:bold;');
             freqText.textContent = node.freq;
             g.appendChild(freqText);
-
-            // Add tooltip
-            const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-            title.textContent = `Internal Node\nMerged Frequency: ${node.freq}`;
-            g.appendChild(title);
-        }
-
-        // Highlight code path when hovered over leaf node
-        if (isLeaf) {
-            g.addEventListener('mouseenter', () => {
-                highlightCodePath(node, svg);
-            });
-            g.addEventListener('mouseleave', () => {
-                resetLinkHighlights(svg);
-            });
         }
 
         svg.appendChild(g);
     });
-}
-
-function highlightCodePath(leafNode, svg) {
-    const charCode = codesGlobal[leafNode.char];
-    if (!charCode) return;
-
-    const lines = svg.querySelectorAll('.tree-link');
-
-    let curr = rootGlobal;
-    let nodePath = [curr];
-    for (let char of charCode) {
-        if (char === '0' && curr.left) {
-            curr = curr.left;
-        } else if (char === '1' && curr.right) {
-            curr = curr.right;
-        }
-        nodePath.push(curr);
-    }
-
-    lines.forEach(line => {
-        const x1 = parseFloat(line.getAttribute('x1'));
-        const y1 = parseFloat(line.getAttribute('y1'));
-        const x2 = parseFloat(line.getAttribute('x2'));
-        const y2 = parseFloat(line.getAttribute('y2'));
-
-        for (let i = 0; i < nodePath.length - 1; i++) {
-            const p = nodePath[i].coords;
-            const c = nodePath[i + 1].coords;
-
-            if (p && c) {
-                if (Math.abs(x1 - p.x) < 0.1 && Math.abs(y1 - p.y) < 0.1 &&
-                    Math.abs(x2 - c.x) < 0.1 && Math.abs(y2 - c.y) < 0.1) {
-                    line.classList.add('active-path');
-                }
-            }
-        }
-    });
-}
-
-function resetLinkHighlights(svg) {
-    const lines = svg.querySelectorAll('.tree-link');
-    lines.forEach(line => line.classList.remove('active-path'));
 }
 
 function populateCodebookTable(freq, codes, totalLen) {
@@ -1020,9 +958,7 @@ function populateCodebookTable(freq, codes, totalLen) {
     tbody.innerHTML = '';
 
     if (totalLen === 0) {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td colspan="4" style="text-align:center; color:var(--text-muted)">No data. Enter text to see character table.</td>`;
-        tbody.appendChild(tr);
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--text-dim)">Empty payload.</td></tr>`;
         return;
     }
 
@@ -1032,7 +968,6 @@ function populateCodebookTable(freq, codes, totalLen) {
         let displayChar = char;
         if (displayChar === ' ') displayChar = 'Space';
         else if (displayChar === '\n') displayChar = '↵ Enter';
-        else if (displayChar === '\t') displayChar = '⇥ Tab';
 
         const percentage = ((count / totalLen) * 100).toFixed(1) + '%';
         const code = codes[char] || '';
@@ -1048,50 +983,6 @@ function populateCodebookTable(freq, codes, totalLen) {
     });
 }
 
-function escapeHtml(str) {
-    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-function populateSandboxStats(text, codes) {
-    const origSizeEl = document.getElementById('sb-orig-size');
-    const compSizeEl = document.getElementById('sb-comp-size');
-    const savingsEl = document.getElementById('sb-savings');
-    const ratioEl = document.getElementById('sb-ratio');
-    const bitstreamEl = document.getElementById('sb-bitstream');
-    const bitstreamCountEl = document.getElementById('sb-bitstream-count');
-
-    if (!text || text.length === 0) {
-        origSizeEl.innerText = '--';
-        compSizeEl.innerText = '--';
-        savingsEl.innerText = '--';
-        ratioEl.innerText = '--';
-        bitstreamEl.innerText = 'Empty input';
-        bitstreamCountEl.innerText = '0 bits';
-        return;
-    }
-
-    const origBits = text.length * 8;
-
-    let compBits = 0;
-    let bitstreamStr = '';
-    for (let i = 0; i < text.length; i++) {
-        const code = codes[text[i]] || '';
-        compBits += code.length;
-        bitstreamStr += code;
-    }
-
-    const savings = origBits > 0 ? (1 - (compBits / origBits)) * 100 : 0;
-    const ratio = compBits > 0 ? (origBits / compBits).toFixed(2) : 0;
-
-    origSizeEl.innerText = `${origBits} bits (${text.length} B)`;
-    compSizeEl.innerText = `${compBits} bits (${Math.ceil(compBits / 8)} B)`;
-    savingsEl.innerText = `${savings.toFixed(2)}%`;
-    ratioEl.innerText = `Ratio: ${ratio}x`;
-
-    bitstreamCountEl.innerText = `${compBits} bits`;
-    bitstreamEl.innerText = bitstreamStr;
-}
-
 function updateSandbox() {
     const inputField = document.getElementById('sandbox-input');
     if (!inputField) return;
@@ -1103,13 +994,4 @@ function updateSandbox() {
 
     drawSvgTree(root, codes);
     populateCodebookTable(freq, codes, text.length);
-    populateSandboxStats(text, codes);
-}
-
-function setSandboxText(text) {
-    const inputField = document.getElementById('sandbox-input');
-    if (inputField) {
-        inputField.value = text;
-        updateSandbox();
-    }
 }

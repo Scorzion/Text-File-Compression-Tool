@@ -3,30 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Huffman Compressor &mdash; Lossless Binary File Compression</title>
-    <!-- Google Fonts -->
+    <title>Huffman Engine &mdash; Binary Compression & Bitstream Inspector</title>
+    <!-- Google Fonts: JetBrains Mono & Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     
-    <!-- Lucide Icons (CDN) for modern look -->
+    <!-- Lucide Icons (CDN) -->
     <script src="https://unpkg.com/lucide@latest"></script>
     
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="static/css/styles.css?v=1.0.2">
+    <link rel="stylesheet" href="static/css/styles.css?v=2.0.0">
 </head>
 <body>
-    <!-- Interactive Background Canvas -->
-    <canvas id="bg-canvas"></canvas>
-
     <div class="app-container">
         <!-- Header -->
         <header class="app-header">
-            <div class="logo">
-                <i data-lucide="shrink" class="logo-icon purple-glow"></i>
-                <span class="logo-text">HUFFMAN<span class="accent">CODER</span></span>
+            <div class="brand-wrapper">
+                <span class="logo-text">huffman-engine</span>
             </div>
-            <p class="tagline">High-performance lossless data compression utility based on Greedy Huffman Coding</p>
+            <div class="header-meta">
+                <span class="engine-badge" id="engine-status-badge">c++ native / port 5000</span>
+            </div>
         </header>
 
         <!-- Main Dashboard Card -->
@@ -34,27 +32,37 @@
             <!-- Navigation Tabs -->
             <div class="tabs-nav">
                 <button class="tab-btn active" id="tab-compress" onclick="switchTab('compress')">
-                    <i data-lucide="file-archive"></i> Compress File
+                    <i data-lucide="file-archive"></i> [1] COMPRESS WORKSPACE
                 </button>
                 <button class="tab-btn" id="tab-decompress" onclick="switchTab('decompress')">
-                    <i data-lucide="file-digit"></i> Decompress File
+                    <i data-lucide="file-digit"></i> [2] DECOMPRESS WORKSPACE
+                </button>
+                <button class="tab-btn" id="tab-inspector" onclick="switchTab('inspector')">
+                    <i data-lucide="binary"></i> [3] BITSTREAM INSPECTOR
                 </button>
                 <button class="tab-btn" id="tab-visualizer" onclick="switchTab('visualizer')">
-                    <i data-lucide="git-branch"></i> Interactive Sandbox
+                    <i data-lucide="git-branch"></i> [4] TREE VISUALIZER
                 </button>
             </div>
 
-            <div class="tab-content">
-                <!-- Drop Zone area -->
+            <!-- Workspace Tab Content -->
+            <div class="tab-content" id="workspace-content">
+                <!-- Input Mode Toggle -->
+                <div class="input-toggle-bar" id="input-toggle-bar">
+                    <span class="tile-label">Input Source:</span>
+                    <div class="input-toggle-group">
+                        <button class="toggle-opt active" id="mode-file-btn" onclick="setInputMode('file')">File Upload</button>
+                        <button class="toggle-opt" id="mode-text-btn" onclick="setInputMode('text')">Direct Text Input</button>
+                    </div>
+                </div>
+
+                <!-- Drop Zone Area (File Mode) -->
                 <div class="drop-zone" id="drop-zone">
                     <input type="file" id="file-input" class="file-input" />
                     <div class="drop-zone-content" id="drop-zone-prompt">
-                        <div class="icon-wrap">
-                            <i data-lucide="upload-cloud" class="upload-icon"></i>
-                        </div>
-                        <h3>Drag & drop your file here</h3>
-                        <p>or <span class="browse-btn">browse files</span></p>
-                        <p class="supported-text" id="supported-formats-label">Supports any text-based file (.txt, .c, .cpp, .js, etc.)</p>
+                        <i data-lucide="upload-cloud" class="upload-icon"></i>
+                        <h3>Drag & drop binary or text file</h3>
+                        <p>or <span class="browse-btn">browse file from disk</span></p>
                     </div>
 
                     <!-- Selected File State -->
@@ -62,7 +70,7 @@
                         <i data-lucide="file-text" class="file-icon" id="state-file-icon"></i>
                         <div class="file-details">
                             <span class="file-name" id="selected-file-name">filename.txt</span>
-                            <span class="file-size" id="selected-file-size">0 KB</span>
+                            <span class="file-size" id="selected-file-size">0 B</span>
                         </div>
                         <button class="remove-file-btn" onclick="resetUpload(event)" title="Remove file">
                             <i data-lucide="x"></i>
@@ -70,213 +78,155 @@
                     </div>
                 </div>
 
+                <!-- Direct Text Input Area (Text Mode) -->
+                <div class="text-input-container hidden" id="text-input-container">
+                    <textarea id="raw-text-area" class="raw-text-area" placeholder="Paste or type text payload for instant compression..." oninput="handleTextInput()"></textarea>
+                </div>
+
                 <!-- Process Button -->
-                <div class="action-bar">
+                <div class="action-bar" id="action-bar">
                     <button class="action-btn" id="process-btn" disabled onclick="processFile()">
-                        <span id="btn-text">Compress File</span>
-                        <i data-lucide="arrow-right"></i>
+                        <span id="btn-text">RUN COMPRESSION</span>
+                        <i data-lucide="play"></i>
                     </button>
                 </div>
 
-                <!-- Loading State -->
+                <!-- Loading Spinner -->
                 <div class="loading-container hidden" id="loading-container">
-                    <div class="spinner-box">
-                        <div class="spinner-ring"></div>
-                        <i data-lucide="cpu" class="loading-center-icon"></i>
-                    </div>
-                    <h4 id="loading-title">Compressing file...</h4>
-                    <p>Building minheap tree & packing bitstream streams</p>
+                    <div class="spinner-box"></div>
+                    <span class="tile-label" id="loading-title">EXECUTING ENGINE...</span>
                 </div>
 
-                <!-- Results Section -->
+                <!-- Results & Shannon Entropy Metrics Grid -->
                 <div class="results-container hidden" id="results-container">
-                    <h3 class="section-title"><i data-lucide="check-circle" class="success-icon"></i> Processing Successful!</h3>
-                    
-                    <div class="comparison-grid">
-                        <!-- Original File Card -->
-                        <div class="metric-card">
-                            <div class="card-header-small">
-                                <i data-lucide="file" class="text-muted"></i>
-                                <span>Input File</span>
-                            </div>
-                            <div class="metric-val text-muted" id="res-orig-name">file.txt</div>
-                            <div class="metric-desc" id="res-orig-size">Original Size: --</div>
-                        </div>
+                    <div class="metrics-header-bar">
+                        <span class="metrics-title"><i data-lucide="check"></i> COMPRESSION METRICS COMPLETE</span>
+                        <span class="tile-sub" id="res-time-badge">LATENCY: 0 ms</span>
+                    </div>
 
-                        <!-- Spacer / Center Stats -->
-                        <div class="metric-card highlight-card">
-                            <div class="card-header-small">
-                                <i data-lucide="zap" class="text-accent"></i>
-                                <span>Metrics</span>
-                            </div>
-                            <div class="metric-val text-accent" id="res-savings">--</div>
-                            <div class="metric-desc" id="res-ratio">Ratio: --</div>
+                    <div class="metrics-grid">
+                        <div class="metric-tile">
+                            <span class="tile-label">Original Size</span>
+                            <span class="tile-val" id="res-orig-size">--</span>
+                            <span class="tile-sub" id="res-orig-bits">-- bits</span>
                         </div>
-
-                        <!-- Compressed/Output Card -->
-                        <div class="metric-card">
-                            <div class="card-header-small">
-                                <i data-lucide="file-check" class="text-success"></i>
-                                <span>Output File</span>
-                            </div>
-                            <div class="metric-val text-success" id="res-out-name">file-compressed.bin</div>
-                            <div class="metric-desc" id="res-out-size">Compressed Size: --</div>
+                        <div class="metric-tile highlight">
+                            <span class="tile-label">Compressed Size</span>
+                            <span class="tile-val accent" id="res-out-size">--</span>
+                            <span class="tile-sub" id="res-out-bits">-- bits</span>
+                        </div>
+                        <div class="metric-tile">
+                            <span class="tile-label">Shannon Entropy</span>
+                            <span class="tile-val cyan" id="res-entropy">--</span>
+                            <span class="tile-sub" id="res-theoretical">Theoretical min</span>
+                        </div>
+                        <div class="metric-tile">
+                            <span class="tile-label">Space Savings</span>
+                            <span class="tile-val accent" id="res-savings">--</span>
+                            <span class="tile-sub" id="res-ratio">Ratio: --</span>
+                        </div>
+                        <div class="metric-tile">
+                            <span class="tile-label">Throughput</span>
+                            <span class="tile-val cyan" id="res-throughput">--</span>
+                            <span class="tile-sub" id="res-header-overhead">Header: -- B</span>
                         </div>
                     </div>
 
-                    <!-- Bottom Bar with Download and Reset -->
                     <div class="results-actions">
                         <a href="#" id="download-link" class="download-btn">
-                            <i data-lucide="download"></i> Download File
+                            <i data-lucide="download"></i> DOWNLOAD OUTPUT FILE
                         </a>
                         <button class="reset-btn" onclick="startOver()">
-                            <i data-lucide="rotate-ccw"></i> Compress Another
+                            <i data-lucide="rotate-ccw"></i> RESET WORKSPACE
                         </button>
-                    </div>
-                    <div class="performance-tag">
-                        Executed in <span id="res-time" class="mono">0</span> ms
                     </div>
                 </div>
 
                 <!-- Error Alert -->
                 <div class="error-alert hidden" id="error-alert">
-                    <i data-lucide="alert-triangle"></i>
+                    <i data-lucide="alert-circle"></i>
                     <div class="error-content">
-                        <strong id="error-title">Error!</strong>
-                        <p id="error-message">Failed to process the file.</p>
+                        <strong id="error-title">EXECUTION ERROR</strong>
+                        <p id="error-message">Operation failed.</p>
                     </div>
                     <button class="close-error-btn" onclick="hideError()">
                         <i data-lucide="x"></i>
                     </button>
                 </div>
+            </div>
 
-                <!-- Sandbox/Visualizer Section -->
-                <div class="visualizer-container hidden" id="visualizer-container">
-                    <div class="sandbox-input-group">
-                        <label for="sandbox-input" class="sandbox-label"><i data-lucide="keyboard"></i> Enter text to compress and visualize:</label>
-                        <div class="sandbox-input-wrapper">
-                            <input type="text" id="sandbox-input" placeholder="Type something here (e.g. ABRACADABRA)..." value="ABRACADABRA" maxlength="150" oninput="updateSandbox()" />
-                            <div class="sandbox-quick-presets">
-                                <span class="preset-label">Quick Presets:</span>
-                                <button class="preset-btn" onclick="setSandboxText('ABRACADABRA')">ABRACADABRA</button>
-                                <button class="preset-btn" onclick="setSandboxText('BEEP BOOP')">BEEP BOOP</button>
-                                <button class="preset-btn" onclick="setSandboxText('DATA COMPRESSION')">DATA COMPRESSION</button>
-                            </div>
+            <!-- Bitstream Inspector Panel (Tab 3) -->
+            <div class="inspector-panel hidden" id="inspector-panel">
+                <div class="metrics-header-bar">
+                    <span class="metrics-title"><i data-lucide="binary"></i> BINARY BITSTREAM & HEADER LAYOUT</span>
+                    <span class="tile-sub" id="inspector-size-tag">0 Bytes</span>
+                </div>
+                
+                <div class="inspector-legend">
+                    <div class="legend-item"><span class="legend-chip ext"></span> Ext String</div>
+                    <div class="legend-item"><span class="legend-chip count"></span> Unique Symbol Count</div>
+                    <div class="legend-item"><span class="legend-chip table"></span> Codebook Entries</div>
+                    <div class="legend-item"><span class="legend-chip payload"></span> Encoded Bitstream Payload</div>
+                </div>
+
+                <div class="hex-dump-container" id="hex-dump-container">
+                    <!-- Dynamically populated hex table -->
+                    <span style="color:var(--text-dim)">No compressed binary active. Process a file or text string first.</span>
+                </div>
+            </div>
+
+            <!-- Tree Visualizer Panel (Tab 4) -->
+            <div class="visualizer-container hidden" id="visualizer-container">
+                <div class="sandbox-input-group">
+                    <label for="sandbox-input" class="tile-label"><i data-lucide="keyboard"></i> TEST STRING PAYLOAD:</label>
+                    <div class="sandbox-input-wrapper">
+                        <input type="text" id="sandbox-input" class="raw-text-area" style="height:44px;" placeholder="Type text payload..." value="ABRACADABRA" maxlength="150" oninput="updateSandbox()" />
+                    </div>
+                </div>
+
+                <div class="visualizer-layout" style="display:grid; grid-template-columns: 1.5fr 1fr; gap:16px;">
+                    <div class="tree-panel">
+                        <span class="tile-label" style="margin-bottom:8px; display:block;"><i data-lucide="git-branch"></i> PREFIX TREE DIAGRAM</span>
+                        <div class="svg-container" id="tree-svg-container">
+                            <svg id="tree-svg" width="100%" height="340"></svg>
                         </div>
                     </div>
 
-                    <div class="visualizer-layout">
-                        <!-- Tree Diagram -->
-                        <div class="tree-panel">
-                            <h3><i data-lucide="git-branch"></i> Huffman Tree Visualization</h3>
-                            <p class="panel-subtitle">Visual representation of the prefix code tree. Leaf nodes show character codes and counts.</p>
-                            <div class="svg-container" id="tree-svg-container">
-                                <svg id="tree-svg" width="100%" height="360"></svg>
-                            </div>
-                        </div>
-
-                        <!-- Statistics & Code Table -->
-                        <div class="stats-panel">
-                            <h3><i data-lucide="table"></i> Character Codebook</h3>
-                            <div class="table-scroll">
-                                <table class="codebook-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Char</th>
-                                            <th>Freq</th>
-                                            <th>Percentage</th>
-                                            <th>Huffman Code</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="codebook-tbody">
-                                        <!-- Dynamically generated -->
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Metrics and Bitstream -->
-                    <div class="sandbox-results">
-                        <div class="comparison-grid">
-                            <div class="metric-card">
-                                <div class="card-header-small">
-                                    <i data-lucide="hash"></i>
-                                    <span>Original Size</span>
-                                </div>
-                                <div class="metric-val text-muted" id="sb-orig-size">--</div>
-                                <div class="metric-desc">8 bits per character</div>
-                            </div>
-                            <div class="metric-card highlight-card">
-                                <div class="card-header-small">
-                                    <i data-lucide="zap"></i>
-                                    <span>Savings</span>
-                                </div>
-                                <div class="metric-val text-accent" id="sb-savings">--</div>
-                                <div class="metric-desc" id="sb-ratio">--</div>
-                            </div>
-                            <div class="metric-card">
-                                <div class="card-header-small">
-                                    <i data-lucide="binary"></i>
-                                    <span>Huffman Size</span>
-                                </div>
-                                <div class="metric-val text-success" id="sb-comp-size">--</div>
-                                <div class="metric-desc">Header overhead excluded</div>
-                            </div>
-                        </div>
-
-                        <div class="bitstream-container">
-                            <div class="bitstream-header">
-                                <span><i data-lucide="align-left"></i> Encoded Bitstream</span>
-                                <span class="bitstream-count" id="sb-bitstream-count">0 bits</span>
-                            </div>
-                            <div class="bitstream-val" id="sb-bitstream">
-                                <!-- Dynamically generated -->
-                            </div>
+                    <div class="stats-panel">
+                        <span class="tile-label" style="margin-bottom:8px; display:block;"><i data-lucide="table"></i> SYMBOL CODEBOOK</span>
+                        <div class="table-scroll" style="overflow-y:auto; max-height:300px;">
+                            <table class="codebook-table">
+                                <thead>
+                                    <tr>
+                                        <th>Char</th>
+                                        <th>Freq</th>
+                                        <th>Prob %</th>
+                                        <th>Huffman Code</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="codebook-tbody">
+                                    <!-- Dynamically generated -->
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
             </div>
         </main>
         
-        <!-- Algorithm Information -->
-        <section class="info-section">
-            <h2>Under the Hood</h2>
-            <div class="info-grid">
-                <div class="info-card">
-                    <i data-lucide="bar-chart-2"></i>
-                    <h3>Optimal Coding</h3>
-                    <p>Characters that occur frequently are assigned shorter binary codes, while rare characters get longer codes, minimizing total bit count.</p>
-                </div>
-                <div class="info-card">
-                    <i data-lucide="shield-check"></i>
-                    <h3>100% Lossless</h3>
-                    <p>The bitwise reconstruction restores the exact original files without losing a single bit of information, verified via MD5 validation checks.</p>
-                </div>
-                <div class="info-card">
-                    <i data-lucide="cpu"></i>
-                    <h3>C++ Engine</h3>
-                    <p>Powered by a high-performance C++ backend utilizing optimal priority queues (O(N log N)) and bitwise raw binary operations.</p>
-                </div>
-            </div>
-        </section>
-        
         <footer class="app-footer">
-            <p>&copy; 2026 Huffman Coding Engine &bull; Lossless Data Compression Tool</p>
+            <p>huffman-engine</p>
         </footer>
     </div>
 
     <!-- Custom JS -->
-    <script src="static/js/app.js?v=1.0.2"></script>
+    <script src="static/js/app.js?v=2.0.0"></script>
     <script>
-        // Initialize Lucide Icons safely
         try {
             if (typeof lucide !== 'undefined') {
                 lucide.createIcons();
             }
-        } catch (e) {
-            console.warn('Lucide icons failed to load:', e);
-        }
+        } catch (e) {}
     </script>
 </body>
 </html>

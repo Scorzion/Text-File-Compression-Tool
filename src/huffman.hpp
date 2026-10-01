@@ -9,6 +9,7 @@
 struct Node {
     uint8_t ch;
     uint32_t freq;
+    uint8_t min_ch;
     Node* left;
     Node* right;
 

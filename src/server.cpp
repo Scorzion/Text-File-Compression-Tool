@@ -53,6 +53,7 @@ int main(int argc, char* argv[]) {
         std::vector<uint8_t> compressed = compress_memory(input_data, ext);
         auto end = std::chrono::high_resolution_clock::now();
         auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+        auto duration_us = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 
         size_t orig_size = input_data.size();
         size_t comp_size = compressed.size();
@@ -67,6 +68,7 @@ int main(int argc, char* argv[]) {
         res.set_header("X-Savings", std::to_string(savings));
         res.set_header("X-Ratio", std::to_string(ratio));
         res.set_header("X-Duration-MS", std::to_string(duration_ms));
+        res.set_header("X-Duration-US", std::to_string(duration_us));
 
         std::string binary_str(compressed.begin(), compressed.end());
         res.set_content(binary_str, "application/octet-stream");
@@ -89,6 +91,7 @@ int main(int argc, char* argv[]) {
         std::vector<uint8_t> decompressed = decompress_memory(input_data, ext);
         auto end = std::chrono::high_resolution_clock::now();
         auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+        auto duration_us = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 
         size_t orig_size = input_data.size();
         size_t decomp_size = decompressed.size();
@@ -99,6 +102,7 @@ int main(int argc, char* argv[]) {
         res.set_header("X-Decompressed-Size", std::to_string(decomp_size));
         res.set_header("X-Extension", ext);
         res.set_header("X-Duration-MS", std::to_string(duration_ms));
+        res.set_header("X-Duration-US", std::to_string(duration_us));
 
         std::string binary_str(decompressed.begin(), decompressed.end());
         res.set_content(binary_str, "application/octet-stream");
