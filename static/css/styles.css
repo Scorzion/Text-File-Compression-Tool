@@ -1,14 +1,14 @@
 /* CyberChef / Minimalist Developer Terminal Design System */
 :root {
-    --bg-dark: #0d1117;
-    --bg-card: #161b22;
-    --bg-card-hover: #1c2128;
-    --border-color: #30363d;
-    --border-subtle: #21262d;
+    --bg-dark: #000000;
+    --bg-card: #000000;
+    --bg-card-hover: #0a0a0a;
+    --border-color: #222222;
+    --border-subtle: #141414;
     
     --text-main: #e6edf3;
     --text-muted: #8b949e;
-    --text-dim: #6e7681;
+    --text-dim: #7d8590;
     
     --accent: #10b981; /* Terminal Emerald */
     --accent-glow: rgba(16, 185, 129, 0.15);
@@ -23,6 +23,35 @@
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     
     --transition-fast: all 0.15s ease;
+}
+
+/* Browser Surface Theming */
+::selection {
+    background: rgba(16, 185, 129, 0.28);
+    color: #ffffff;
+}
+
+:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-dark);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--text-dim);
 }
 
 *, *::before, *::after {
@@ -92,7 +121,7 @@ html, body {
     display: flex;
     align-items: center;
     gap: 10px;
-    font-size: 11px;
+    font-size: 12px;
 }
 
 .status-badge {
@@ -190,9 +219,9 @@ html, body {
     border: none;
     color: var(--text-muted);
     padding: 5px 12px;
-    border-radius: 3px;
+    border-radius: 4px;
     cursor: pointer;
-    font-size: 11px;
+    font-size: 12px;
     font-family: var(--font-mono);
     font-weight: 600;
     transition: var(--transition-fast);
@@ -258,7 +287,7 @@ html, body {
 
 .drop-zone-content p {
     color: var(--text-muted);
-    font-size: 11px;
+    font-size: 13px;
 }
 
 .browse-btn {
@@ -305,7 +334,7 @@ html, body {
 }
 
 .file-size {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--text-muted);
 }
 
@@ -315,7 +344,7 @@ html, body {
     color: var(--text-muted);
     cursor: pointer;
     padding: 4px;
-    border-radius: 3px;
+    border-radius: 4px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -448,6 +477,13 @@ html, body {
     display: flex;
     flex-direction: column;
     gap: 6px;
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.metric-tile:hover {
+    border-color: rgba(16, 185, 129, 0.4);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    transform: translateY(-1px);
 }
 
 .metric-tile.highlight {
@@ -456,7 +492,7 @@ html, body {
 }
 
 .tile-label {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -466,6 +502,7 @@ html, body {
     font-size: 16px;
     font-weight: 700;
     color: var(--text-main);
+    font-variant-numeric: tabular-nums;
 }
 
 .tile-val.accent {
@@ -477,7 +514,7 @@ html, body {
 }
 
 .tile-sub {
-    font-size: 10px;
+    font-size: 12px;
     color: var(--text-dim);
 }
 
@@ -540,7 +577,7 @@ html, body {
     border-radius: 4px;
     padding: 14px;
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: 12px;
     overflow-x: auto;
     max-height: 280px;
     overflow-y: auto;
@@ -583,7 +620,7 @@ html, body {
 .inspector-legend {
     display: flex;
     gap: 14px;
-    font-size: 11px;
+    font-size: 12px;
     color: var(--text-muted);
     flex-wrap: wrap;
 }
@@ -634,7 +671,7 @@ html, body {
 
 .tree-node text {
     fill: var(--text-main);
-    font-size: 10px;
+    font-size: 11px;
     font-family: var(--font-mono);
     text-anchor: middle;
     dominant-baseline: central;
@@ -657,7 +694,7 @@ html, body {
 }
 
 .branch-label {
-    font-size: 10px;
+    font-size: 11px;
     font-family: var(--font-mono);
     fill: var(--text-muted);
     text-anchor: middle;
@@ -679,7 +716,7 @@ html, body {
 .codebook-table th {
     color: var(--text-muted);
     text-transform: uppercase;
-    font-size: 10px;
+    font-size: 11px;
     letter-spacing: 0.5px;
     background: var(--bg-dark);
     position: sticky;
@@ -716,7 +753,7 @@ html, body {
     margin-top: auto;
     padding-top: 24px;
     color: var(--text-dim);
-    font-size: 11px;
+    font-size: 12px;
 }
 
 .hidden { display: none !important; }
